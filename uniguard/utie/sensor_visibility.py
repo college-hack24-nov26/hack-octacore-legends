@@ -198,3 +198,4 @@ class SensorVisibilityEvaluator:
             confidence_penalty=0.0,
             sensor_notes=notes,
         )
+

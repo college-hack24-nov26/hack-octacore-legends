@@ -19,6 +19,12 @@ import psutil
 
 from uniguard.intelligence.geolocation import GeoIPResolver
 from uniguard.database.storage import SecurityDatabase
+from uniguard.utie import (
+    UnidirectionalTrafficIntelligenceEngine,
+    SensorVisibilityContext,
+    ObservationPoint,
+    UTIEIntelligenceReport,
+)
 
 
 class SocStateBridge:
@@ -47,6 +53,8 @@ class SocStateBridge:
         }
         self.recent_threats: List[Dict[str, Any]] = []
         self.recent_flows: List[Dict[str, Any]] = []
+        self.recent_utie_reports: List[Dict[str, Any]] = []
+        self.utie_engine = UnidirectionalTrafficIntelligenceEngine()
         self.analytics: Dict[str, Any] = {
             "top_sources": [],
             "top_destinations": [],
@@ -283,6 +291,13 @@ class SocStateBridge:
             if len(self.recent_flows) > 100:
                 self.recent_flows.pop()
 
+    def add_utie_report(self, report: Any) -> None:
+        with self._lock:
+            d = report.to_dict() if hasattr(report, "to_dict") else report
+            self.recent_utie_reports.insert(0, d)
+            if len(self.recent_utie_reports) > 100:
+                self.recent_utie_reports.pop()
+
     def update_analytics(self, analytics_data: Dict[str, Any]) -> None:
         with self._lock:
             self.analytics.update(analytics_data)
@@ -378,6 +393,39 @@ class SocHttpHandler(BaseHTTPRequestHandler):
                 self.send_json_response([])
             return
 
+        # =====================================================================
+        # UTIE Endpoints (SIH 2026 Core Feature)
+        # =====================================================================
+        elif self.path.startswith("/api/utie/summary"):
+            self.send_json_response(bridge.utie_engine.get_summary())
+            return
+
+        elif self.path.startswith("/api/utie/flows"):
+            try:
+                parsed = urlparse(self.path)
+                params = parse_qs(parsed.query)
+                limit = int(params.get("limit", [100])[0])
+                directionality = params.get("directionality", ["ALL"])[0]
+                query = params.get("query", [""])[0]
+                min_risk = int(params.get("min_risk", [0])[0])
+
+                reports = bridge.database.search_utie_reports(
+                    query=query,
+                    directionality=directionality,
+                    min_risk=min_risk,
+                    limit=limit,
+                )
+                if not reports and bridge.recent_utie_reports:
+                    reports = bridge.recent_utie_reports[:limit]
+                self.send_json_response(reports)
+            except Exception:
+                self.send_json_response([])
+            return
+
+        elif self.path.startswith("/api/utie/sensor-visibility"):
+            self.send_json_response(bridge.utie_engine.sensor_context.to_dict())
+            return
+
         elif self.path.startswith("/api/settings"):
             self.send_json_response(bridge.settings)
             return
@@ -430,6 +478,25 @@ class SocHttpHandler(BaseHTTPRequestHandler):
                 self.send_json_response({"status": "updated", "settings": bridge.settings})
             except Exception as e:
                 self.send_error(400, f"Invalid Settings Payload: {e}")
+        elif self.path == "/api/utie/sensor-visibility":
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(length)
+                data = json.loads(body.decode("utf-8"))
+                obs_str = data.get("observation_point", "PROMISCUOUS_TAP")
+                try:
+                    obs_pt = ObservationPoint[obs_str]
+                except KeyError:
+                    obs_pt = ObservationPoint.PROMISCUOUS_TAP
+                ctx = SensorVisibilityContext(
+                    observation_point=obs_pt,
+                    sampling_rate=float(data.get("sampling_rate", 1.0)),
+                    is_diode_enforced=bool(data.get("is_diode_enforced", False)),
+                )
+                bridge.utie_engine.set_sensor_context(ctx)
+                self.send_json_response({"status": "updated", "sensor_visibility": ctx.to_dict()})
+            except Exception as e:
+                self.send_error(400, f"Invalid UTIE Sensor Payload: {e}")
         else:
             self.send_error(404, "Unknown API Action")
 

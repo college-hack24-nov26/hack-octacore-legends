@@ -114,6 +114,12 @@
           Directionality
         </div>
 
+        <div class="nav-item" data-view="utie-intelligence">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+          Unidirectional Intelligence
+          <span style="background:rgba(0,229,255,0.15); color:var(--accent-cyan); font-size:10px; font-weight:700; padding:1px 5px; border-radius:3px; margin-left:auto">UTIE</span>
+        </div>
+
         <div class="nav-item" data-view="traffic-analytics">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
           Traffic Analytics
@@ -140,6 +146,133 @@
         </div>
       </div>
 
+      <!-- =====================================================================
+           VIEW 6.5: UNIDIRECTIONAL TRAFFIC INTELLIGENCE ENGINE (UTIE) - SIH 2026
+           ===================================================================== -->
+      <div id="view-utie-intelligence" class="view-container">
+        <div class="view-header">
+          <div class="view-title-wrap">
+            <h1 class="view-title">Unidirectional Traffic Intelligence Engine (UTIE)</h1>
+            <span class="badge-tag" style="background:rgba(0,229,255,0.15); color:var(--accent-cyan)">SIH 2026 CORE INNOVATION</span>
+          </div>
+          <div class="soc-tabs">
+            <button class="soc-tab-btn active utie-filter-btn" data-dir="ALL">All Observations</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="UNIDIRECTIONAL_OBSERVED">Unidirectional</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="BIDIRECTIONAL_OBSERVED">Bidirectional</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="ASYMMETRIC_OBSERVED">Asymmetric</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="INSUFFICIENT_DATA">Insufficient Data</button>
+          </div>
+        </div>
+
+        <!-- UTIE Overview KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card" style="--kpi-accent: #00e5ff">
+            <div class="kpi-header"><span>TOTAL ANALYZED</span></div>
+            <div id="utie-kpi-total" class="kpi-value">0</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #a855f7">
+            <div class="kpi-header"><span>UNIDIRECTIONAL OBSERVED</span></div>
+            <div id="utie-kpi-unidir" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #10b981">
+            <div class="kpi-header"><span>BIDIRECTIONAL OBSERVED</span></div>
+            <div id="utie-kpi-bidir" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #f59e0b">
+            <div class="kpi-header"><span>ASYMMETRIC OBSERVED</span></div>
+            <div id="utie-kpi-asym" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #8b949e">
+            <div class="kpi-header"><span>INSUFFICIENT DATA</span></div>
+            <div id="utie-kpi-insufficient" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #ef4444">
+            <div class="kpi-header"><span>SUSPICIOUS FLOWS</span></div>
+            <div id="utie-kpi-suspicious" class="kpi-value">0</div>
+          </div>
+        </div>
+
+        <!-- Sensor Visibility and Directionality Bar -->
+        <div class="soc-card" style="margin-top:16px;">
+          <div class="soc-card-header" style="display:flex; justify-content:space-between; align-items:center">
+            <span class="card-title">Observation Symmetry & Sensor Visibility Awareness</span>
+            <div style="display:flex; gap:12px; align-items:center">
+              <span id="utie-dist-text" style="font-family:var(--font-mono); font-size:11px; color:var(--accent-cyan)">
+                UNIDIRECTIONAL: 0% | BIDIRECTIONAL: 0% | ASYMMETRIC: 0% | INSUFFICIENT: 0%
+              </span>
+              <span id="utie-sensor-mode" class="card-badge" style="background:rgba(168,85,247,0.15); color:var(--accent-purple)">
+                SENSOR: PROMISCUOUS_TAP
+              </span>
+            </div>
+          </div>
+          <div class="dir-dist-bar" style="margin-top:8px">
+            <div id="utie-bar-unidir" class="dir-seg-oneway" style="width:25%"></div>
+            <div id="utie-bar-bidir" class="dir-seg-bidi" style="width:25%"></div>
+            <div id="utie-bar-asym" class="dir-seg-asym" style="width:25%"></div>
+            <div id="utie-bar-insuf" style="width:25%; background:#8b949e"></div>
+          </div>
+        </div>
+
+        <!-- UTIE Flow Intelligence Master Table -->
+        <div class="soc-card" style="margin-top:16px;">
+          <div class="soc-card-header" style="display:flex; justify-content:space-between; align-items:center">
+            <span class="card-title">Flow Intelligence Stream</span>
+            <div style="display:flex; gap:10px; align-items:center">
+              <input type="text" id="utie-search-input" placeholder="Search IP, Port, Flow ID..." style="background:rgba(15,23,42,0.8); border:1px solid var(--border-subtle); color:#fff; padding:4px 10px; border-radius:4px; font-size:12px; width:220px;" />
+              <span id="utie-table-count" style="font-size:11px; color:var(--text-muted)">0 flows</span>
+            </div>
+          </div>
+          <div class="table-wrapper" style="max-height:340px;">
+            <table class="soc-table">
+              <thead>
+                <tr>
+                  <th>Flow ID</th>
+                  <th>Source IP:Port</th>
+                  <th>Destination IP:Port</th>
+                  <th>Proto</th>
+                  <th>Directionality</th>
+                  <th>Packets (Fwd/Rev)</th>
+                  <th>Bytes</th>
+                  <th>Duration</th>
+                  <th>Anomaly Status</th>
+                  <th>Threat Class</th>
+                  <th>Risk Score</th>
+                </tr>
+              </thead>
+              <tbody id="utie-flow-tbody">
+                <tr><td colspan="11" style="text-align:center; color:var(--text-muted); padding:20px;">Awaiting UTIE flow intelligence reports...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- UTIE Split Inspector Panel -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:16px;">
+          <!-- Left: Directionality Evidence & Sensor Context -->
+          <div class="soc-card">
+            <div class="soc-card-header">
+              <span class="card-title">Directionality Assessment & Sensor Visibility</span>
+              <span id="utie-detail-badge" class="card-badge" style="background:rgba(0,229,255,0.15); color:var(--accent-cyan)">SELECT A FLOW</span>
+            </div>
+            <div id="utie-detail-evidence-content" style="font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c9d1d9; max-height:280px; overflow-y:auto; white-space:pre-wrap; padding:8px; background:rgba(15,23,42,0.7); border-radius:4px;">
+Select a flow record from the table above to view supporting directionality evidence, sensor visibility evaluation, and packet length statistics.
+            </div>
+          </div>
+
+          <!-- Right: Behavioral Profile & SOC Playbook -->
+          <div class="soc-card">
+            <div class="soc-card-header">
+              <span class="card-title">Traffic Behavior Dynamics & SOC Triage Playbook</span>
+              <span id="utie-detail-risk-badge" class="card-badge" style="background:rgba(16,185,129,0.15); color:var(--accent-green)">INTELLIGENCE READY</span>
+            </div>
+            <div id="utie-detail-behavior-content" style="font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c9d1d9; max-height:280px; overflow-y:auto; white-space:pre-wrap; padding:8px; background:rgba(15,23,42,0.7); border-radius:4px;">
+Select a flow to view packet size dispersion, inter-arrival time burstiness, TCP flag patterns, and actionable incident triage steps.
+            </div>
+          </div>
+        </div>
+
+      </div>
+
       <!-- Sidebar Bottom Controls -->
       <div class="sidebar-bottom">
         <div class="capture-controls">
@@ -148,6 +281,133 @@
             STOP CAPTURE
           </button>
         </div>
+      </div>
+
+      <!-- =====================================================================
+           VIEW 6.5: UNIDIRECTIONAL TRAFFIC INTELLIGENCE ENGINE (UTIE) - SIH 2026
+           ===================================================================== -->
+      <div id="view-utie-intelligence" class="view-container">
+        <div class="view-header">
+          <div class="view-title-wrap">
+            <h1 class="view-title">Unidirectional Traffic Intelligence Engine (UTIE)</h1>
+            <span class="badge-tag" style="background:rgba(0,229,255,0.15); color:var(--accent-cyan)">SIH 2026 CORE INNOVATION</span>
+          </div>
+          <div class="soc-tabs">
+            <button class="soc-tab-btn active utie-filter-btn" data-dir="ALL">All Observations</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="UNIDIRECTIONAL_OBSERVED">Unidirectional</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="BIDIRECTIONAL_OBSERVED">Bidirectional</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="ASYMMETRIC_OBSERVED">Asymmetric</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="INSUFFICIENT_DATA">Insufficient Data</button>
+          </div>
+        </div>
+
+        <!-- UTIE Overview KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card" style="--kpi-accent: #00e5ff">
+            <div class="kpi-header"><span>TOTAL ANALYZED</span></div>
+            <div id="utie-kpi-total" class="kpi-value">0</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #a855f7">
+            <div class="kpi-header"><span>UNIDIRECTIONAL OBSERVED</span></div>
+            <div id="utie-kpi-unidir" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #10b981">
+            <div class="kpi-header"><span>BIDIRECTIONAL OBSERVED</span></div>
+            <div id="utie-kpi-bidir" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #f59e0b">
+            <div class="kpi-header"><span>ASYMMETRIC OBSERVED</span></div>
+            <div id="utie-kpi-asym" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #8b949e">
+            <div class="kpi-header"><span>INSUFFICIENT DATA</span></div>
+            <div id="utie-kpi-insufficient" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #ef4444">
+            <div class="kpi-header"><span>SUSPICIOUS FLOWS</span></div>
+            <div id="utie-kpi-suspicious" class="kpi-value">0</div>
+          </div>
+        </div>
+
+        <!-- Sensor Visibility and Directionality Bar -->
+        <div class="soc-card" style="margin-top:16px;">
+          <div class="soc-card-header" style="display:flex; justify-content:space-between; align-items:center">
+            <span class="card-title">Observation Symmetry & Sensor Visibility Awareness</span>
+            <div style="display:flex; gap:12px; align-items:center">
+              <span id="utie-dist-text" style="font-family:var(--font-mono); font-size:11px; color:var(--accent-cyan)">
+                UNIDIRECTIONAL: 0% | BIDIRECTIONAL: 0% | ASYMMETRIC: 0% | INSUFFICIENT: 0%
+              </span>
+              <span id="utie-sensor-mode" class="card-badge" style="background:rgba(168,85,247,0.15); color:var(--accent-purple)">
+                SENSOR: PROMISCUOUS_TAP
+              </span>
+            </div>
+          </div>
+          <div class="dir-dist-bar" style="margin-top:8px">
+            <div id="utie-bar-unidir" class="dir-seg-oneway" style="width:25%"></div>
+            <div id="utie-bar-bidir" class="dir-seg-bidi" style="width:25%"></div>
+            <div id="utie-bar-asym" class="dir-seg-asym" style="width:25%"></div>
+            <div id="utie-bar-insuf" style="width:25%; background:#8b949e"></div>
+          </div>
+        </div>
+
+        <!-- UTIE Flow Intelligence Master Table -->
+        <div class="soc-card" style="margin-top:16px;">
+          <div class="soc-card-header" style="display:flex; justify-content:space-between; align-items:center">
+            <span class="card-title">Flow Intelligence Stream</span>
+            <div style="display:flex; gap:10px; align-items:center">
+              <input type="text" id="utie-search-input" placeholder="Search IP, Port, Flow ID..." style="background:rgba(15,23,42,0.8); border:1px solid var(--border-subtle); color:#fff; padding:4px 10px; border-radius:4px; font-size:12px; width:220px;" />
+              <span id="utie-table-count" style="font-size:11px; color:var(--text-muted)">0 flows</span>
+            </div>
+          </div>
+          <div class="table-wrapper" style="max-height:340px;">
+            <table class="soc-table">
+              <thead>
+                <tr>
+                  <th>Flow ID</th>
+                  <th>Source IP:Port</th>
+                  <th>Destination IP:Port</th>
+                  <th>Proto</th>
+                  <th>Directionality</th>
+                  <th>Packets (Fwd/Rev)</th>
+                  <th>Bytes</th>
+                  <th>Duration</th>
+                  <th>Anomaly Status</th>
+                  <th>Threat Class</th>
+                  <th>Risk Score</th>
+                </tr>
+              </thead>
+              <tbody id="utie-flow-tbody">
+                <tr><td colspan="11" style="text-align:center; color:var(--text-muted); padding:20px;">Awaiting UTIE flow intelligence reports...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- UTIE Split Inspector Panel -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:16px;">
+          <!-- Left: Directionality Evidence & Sensor Context -->
+          <div class="soc-card">
+            <div class="soc-card-header">
+              <span class="card-title">Directionality Assessment & Sensor Visibility</span>
+              <span id="utie-detail-badge" class="card-badge" style="background:rgba(0,229,255,0.15); color:var(--accent-cyan)">SELECT A FLOW</span>
+            </div>
+            <div id="utie-detail-evidence-content" style="font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c9d1d9; max-height:280px; overflow-y:auto; white-space:pre-wrap; padding:8px; background:rgba(15,23,42,0.7); border-radius:4px;">
+Select a flow record from the table above to view supporting directionality evidence, sensor visibility evaluation, and packet length statistics.
+            </div>
+          </div>
+
+          <!-- Right: Behavioral Profile & SOC Playbook -->
+          <div class="soc-card">
+            <div class="soc-card-header">
+              <span class="card-title">Traffic Behavior Dynamics & SOC Triage Playbook</span>
+              <span id="utie-detail-risk-badge" class="card-badge" style="background:rgba(16,185,129,0.15); color:var(--accent-green)">INTELLIGENCE READY</span>
+            </div>
+            <div id="utie-detail-behavior-content" style="font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c9d1d9; max-height:280px; overflow-y:auto; white-space:pre-wrap; padding:8px; background:rgba(15,23,42,0.7); border-radius:4px;">
+Select a flow to view packet size dispersion, inter-arrival time burstiness, TCP flag patterns, and actionable incident triage steps.
+            </div>
+          </div>
+        </div>
+
       </div>
     </nav>
 
@@ -547,6 +807,133 @@
       </div>
 
       <!-- =====================================================================
+           VIEW 6.5: UNIDIRECTIONAL TRAFFIC INTELLIGENCE ENGINE (UTIE) - SIH 2026
+           ===================================================================== -->
+      <div id="view-utie-intelligence" class="view-container">
+        <div class="view-header">
+          <div class="view-title-wrap">
+            <h1 class="view-title">Unidirectional Traffic Intelligence Engine (UTIE)</h1>
+            <span class="badge-tag" style="background:rgba(0,229,255,0.15); color:var(--accent-cyan)">SIH 2026 CORE INNOVATION</span>
+          </div>
+          <div class="soc-tabs">
+            <button class="soc-tab-btn active utie-filter-btn" data-dir="ALL">All Observations</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="UNIDIRECTIONAL_OBSERVED">Unidirectional</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="BIDIRECTIONAL_OBSERVED">Bidirectional</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="ASYMMETRIC_OBSERVED">Asymmetric</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="INSUFFICIENT_DATA">Insufficient Data</button>
+          </div>
+        </div>
+
+        <!-- UTIE Overview KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card" style="--kpi-accent: #00e5ff">
+            <div class="kpi-header"><span>TOTAL ANALYZED</span></div>
+            <div id="utie-kpi-total" class="kpi-value">0</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #a855f7">
+            <div class="kpi-header"><span>UNIDIRECTIONAL OBSERVED</span></div>
+            <div id="utie-kpi-unidir" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #10b981">
+            <div class="kpi-header"><span>BIDIRECTIONAL OBSERVED</span></div>
+            <div id="utie-kpi-bidir" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #f59e0b">
+            <div class="kpi-header"><span>ASYMMETRIC OBSERVED</span></div>
+            <div id="utie-kpi-asym" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #8b949e">
+            <div class="kpi-header"><span>INSUFFICIENT DATA</span></div>
+            <div id="utie-kpi-insufficient" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #ef4444">
+            <div class="kpi-header"><span>SUSPICIOUS FLOWS</span></div>
+            <div id="utie-kpi-suspicious" class="kpi-value">0</div>
+          </div>
+        </div>
+
+        <!-- Sensor Visibility and Directionality Bar -->
+        <div class="soc-card" style="margin-top:16px;">
+          <div class="soc-card-header" style="display:flex; justify-content:space-between; align-items:center">
+            <span class="card-title">Observation Symmetry & Sensor Visibility Awareness</span>
+            <div style="display:flex; gap:12px; align-items:center">
+              <span id="utie-dist-text" style="font-family:var(--font-mono); font-size:11px; color:var(--accent-cyan)">
+                UNIDIRECTIONAL: 0% | BIDIRECTIONAL: 0% | ASYMMETRIC: 0% | INSUFFICIENT: 0%
+              </span>
+              <span id="utie-sensor-mode" class="card-badge" style="background:rgba(168,85,247,0.15); color:var(--accent-purple)">
+                SENSOR: PROMISCUOUS_TAP
+              </span>
+            </div>
+          </div>
+          <div class="dir-dist-bar" style="margin-top:8px">
+            <div id="utie-bar-unidir" class="dir-seg-oneway" style="width:25%"></div>
+            <div id="utie-bar-bidir" class="dir-seg-bidi" style="width:25%"></div>
+            <div id="utie-bar-asym" class="dir-seg-asym" style="width:25%"></div>
+            <div id="utie-bar-insuf" style="width:25%; background:#8b949e"></div>
+          </div>
+        </div>
+
+        <!-- UTIE Flow Intelligence Master Table -->
+        <div class="soc-card" style="margin-top:16px;">
+          <div class="soc-card-header" style="display:flex; justify-content:space-between; align-items:center">
+            <span class="card-title">Flow Intelligence Stream</span>
+            <div style="display:flex; gap:10px; align-items:center">
+              <input type="text" id="utie-search-input" placeholder="Search IP, Port, Flow ID..." style="background:rgba(15,23,42,0.8); border:1px solid var(--border-subtle); color:#fff; padding:4px 10px; border-radius:4px; font-size:12px; width:220px;" />
+              <span id="utie-table-count" style="font-size:11px; color:var(--text-muted)">0 flows</span>
+            </div>
+          </div>
+          <div class="table-wrapper" style="max-height:340px;">
+            <table class="soc-table">
+              <thead>
+                <tr>
+                  <th>Flow ID</th>
+                  <th>Source IP:Port</th>
+                  <th>Destination IP:Port</th>
+                  <th>Proto</th>
+                  <th>Directionality</th>
+                  <th>Packets (Fwd/Rev)</th>
+                  <th>Bytes</th>
+                  <th>Duration</th>
+                  <th>Anomaly Status</th>
+                  <th>Threat Class</th>
+                  <th>Risk Score</th>
+                </tr>
+              </thead>
+              <tbody id="utie-flow-tbody">
+                <tr><td colspan="11" style="text-align:center; color:var(--text-muted); padding:20px;">Awaiting UTIE flow intelligence reports...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- UTIE Split Inspector Panel -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:16px;">
+          <!-- Left: Directionality Evidence & Sensor Context -->
+          <div class="soc-card">
+            <div class="soc-card-header">
+              <span class="card-title">Directionality Assessment & Sensor Visibility</span>
+              <span id="utie-detail-badge" class="card-badge" style="background:rgba(0,229,255,0.15); color:var(--accent-cyan)">SELECT A FLOW</span>
+            </div>
+            <div id="utie-detail-evidence-content" style="font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c9d1d9; max-height:280px; overflow-y:auto; white-space:pre-wrap; padding:8px; background:rgba(15,23,42,0.7); border-radius:4px;">
+Select a flow record from the table above to view supporting directionality evidence, sensor visibility evaluation, and packet length statistics.
+            </div>
+          </div>
+
+          <!-- Right: Behavioral Profile & SOC Playbook -->
+          <div class="soc-card">
+            <div class="soc-card-header">
+              <span class="card-title">Traffic Behavior Dynamics & SOC Triage Playbook</span>
+              <span id="utie-detail-risk-badge" class="card-badge" style="background:rgba(16,185,129,0.15); color:var(--accent-green)">INTELLIGENCE READY</span>
+            </div>
+            <div id="utie-detail-behavior-content" style="font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c9d1d9; max-height:280px; overflow-y:auto; white-space:pre-wrap; padding:8px; background:rgba(15,23,42,0.7); border-radius:4px;">
+Select a flow to view packet size dispersion, inter-arrival time burstiness, TCP flag patterns, and actionable incident triage steps.
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- =====================================================================
            VIEW 3: LIVE MONITOR & NETWORK ACTIVITY (OLD TAB 2 PARITY)
            ===================================================================== -->
       <div id="view-live-traffic" class="view-container">
@@ -628,6 +1015,133 @@
       </div>
 
       <!-- =====================================================================
+           VIEW 6.5: UNIDIRECTIONAL TRAFFIC INTELLIGENCE ENGINE (UTIE) - SIH 2026
+           ===================================================================== -->
+      <div id="view-utie-intelligence" class="view-container">
+        <div class="view-header">
+          <div class="view-title-wrap">
+            <h1 class="view-title">Unidirectional Traffic Intelligence Engine (UTIE)</h1>
+            <span class="badge-tag" style="background:rgba(0,229,255,0.15); color:var(--accent-cyan)">SIH 2026 CORE INNOVATION</span>
+          </div>
+          <div class="soc-tabs">
+            <button class="soc-tab-btn active utie-filter-btn" data-dir="ALL">All Observations</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="UNIDIRECTIONAL_OBSERVED">Unidirectional</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="BIDIRECTIONAL_OBSERVED">Bidirectional</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="ASYMMETRIC_OBSERVED">Asymmetric</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="INSUFFICIENT_DATA">Insufficient Data</button>
+          </div>
+        </div>
+
+        <!-- UTIE Overview KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card" style="--kpi-accent: #00e5ff">
+            <div class="kpi-header"><span>TOTAL ANALYZED</span></div>
+            <div id="utie-kpi-total" class="kpi-value">0</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #a855f7">
+            <div class="kpi-header"><span>UNIDIRECTIONAL OBSERVED</span></div>
+            <div id="utie-kpi-unidir" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #10b981">
+            <div class="kpi-header"><span>BIDIRECTIONAL OBSERVED</span></div>
+            <div id="utie-kpi-bidir" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #f59e0b">
+            <div class="kpi-header"><span>ASYMMETRIC OBSERVED</span></div>
+            <div id="utie-kpi-asym" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #8b949e">
+            <div class="kpi-header"><span>INSUFFICIENT DATA</span></div>
+            <div id="utie-kpi-insufficient" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #ef4444">
+            <div class="kpi-header"><span>SUSPICIOUS FLOWS</span></div>
+            <div id="utie-kpi-suspicious" class="kpi-value">0</div>
+          </div>
+        </div>
+
+        <!-- Sensor Visibility and Directionality Bar -->
+        <div class="soc-card" style="margin-top:16px;">
+          <div class="soc-card-header" style="display:flex; justify-content:space-between; align-items:center">
+            <span class="card-title">Observation Symmetry & Sensor Visibility Awareness</span>
+            <div style="display:flex; gap:12px; align-items:center">
+              <span id="utie-dist-text" style="font-family:var(--font-mono); font-size:11px; color:var(--accent-cyan)">
+                UNIDIRECTIONAL: 0% | BIDIRECTIONAL: 0% | ASYMMETRIC: 0% | INSUFFICIENT: 0%
+              </span>
+              <span id="utie-sensor-mode" class="card-badge" style="background:rgba(168,85,247,0.15); color:var(--accent-purple)">
+                SENSOR: PROMISCUOUS_TAP
+              </span>
+            </div>
+          </div>
+          <div class="dir-dist-bar" style="margin-top:8px">
+            <div id="utie-bar-unidir" class="dir-seg-oneway" style="width:25%"></div>
+            <div id="utie-bar-bidir" class="dir-seg-bidi" style="width:25%"></div>
+            <div id="utie-bar-asym" class="dir-seg-asym" style="width:25%"></div>
+            <div id="utie-bar-insuf" style="width:25%; background:#8b949e"></div>
+          </div>
+        </div>
+
+        <!-- UTIE Flow Intelligence Master Table -->
+        <div class="soc-card" style="margin-top:16px;">
+          <div class="soc-card-header" style="display:flex; justify-content:space-between; align-items:center">
+            <span class="card-title">Flow Intelligence Stream</span>
+            <div style="display:flex; gap:10px; align-items:center">
+              <input type="text" id="utie-search-input" placeholder="Search IP, Port, Flow ID..." style="background:rgba(15,23,42,0.8); border:1px solid var(--border-subtle); color:#fff; padding:4px 10px; border-radius:4px; font-size:12px; width:220px;" />
+              <span id="utie-table-count" style="font-size:11px; color:var(--text-muted)">0 flows</span>
+            </div>
+          </div>
+          <div class="table-wrapper" style="max-height:340px;">
+            <table class="soc-table">
+              <thead>
+                <tr>
+                  <th>Flow ID</th>
+                  <th>Source IP:Port</th>
+                  <th>Destination IP:Port</th>
+                  <th>Proto</th>
+                  <th>Directionality</th>
+                  <th>Packets (Fwd/Rev)</th>
+                  <th>Bytes</th>
+                  <th>Duration</th>
+                  <th>Anomaly Status</th>
+                  <th>Threat Class</th>
+                  <th>Risk Score</th>
+                </tr>
+              </thead>
+              <tbody id="utie-flow-tbody">
+                <tr><td colspan="11" style="text-align:center; color:var(--text-muted); padding:20px;">Awaiting UTIE flow intelligence reports...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- UTIE Split Inspector Panel -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:16px;">
+          <!-- Left: Directionality Evidence & Sensor Context -->
+          <div class="soc-card">
+            <div class="soc-card-header">
+              <span class="card-title">Directionality Assessment & Sensor Visibility</span>
+              <span id="utie-detail-badge" class="card-badge" style="background:rgba(0,229,255,0.15); color:var(--accent-cyan)">SELECT A FLOW</span>
+            </div>
+            <div id="utie-detail-evidence-content" style="font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c9d1d9; max-height:280px; overflow-y:auto; white-space:pre-wrap; padding:8px; background:rgba(15,23,42,0.7); border-radius:4px;">
+Select a flow record from the table above to view supporting directionality evidence, sensor visibility evaluation, and packet length statistics.
+            </div>
+          </div>
+
+          <!-- Right: Behavioral Profile & SOC Playbook -->
+          <div class="soc-card">
+            <div class="soc-card-header">
+              <span class="card-title">Traffic Behavior Dynamics & SOC Triage Playbook</span>
+              <span id="utie-detail-risk-badge" class="card-badge" style="background:rgba(16,185,129,0.15); color:var(--accent-green)">INTELLIGENCE READY</span>
+            </div>
+            <div id="utie-detail-behavior-content" style="font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c9d1d9; max-height:280px; overflow-y:auto; white-space:pre-wrap; padding:8px; background:rgba(15,23,42,0.7); border-radius:4px;">
+Select a flow to view packet size dispersion, inter-arrival time burstiness, TCP flag patterns, and actionable incident triage steps.
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- =====================================================================
            VIEW 4: THREAT DETECTION & CLASSIFIER ENGINE (OLD TAB 3 PARITY)
            ===================================================================== -->
       <div id="view-threat-detection" class="view-container">
@@ -706,6 +1220,133 @@
       </div>
 
       <!-- =====================================================================
+           VIEW 6.5: UNIDIRECTIONAL TRAFFIC INTELLIGENCE ENGINE (UTIE) - SIH 2026
+           ===================================================================== -->
+      <div id="view-utie-intelligence" class="view-container">
+        <div class="view-header">
+          <div class="view-title-wrap">
+            <h1 class="view-title">Unidirectional Traffic Intelligence Engine (UTIE)</h1>
+            <span class="badge-tag" style="background:rgba(0,229,255,0.15); color:var(--accent-cyan)">SIH 2026 CORE INNOVATION</span>
+          </div>
+          <div class="soc-tabs">
+            <button class="soc-tab-btn active utie-filter-btn" data-dir="ALL">All Observations</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="UNIDIRECTIONAL_OBSERVED">Unidirectional</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="BIDIRECTIONAL_OBSERVED">Bidirectional</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="ASYMMETRIC_OBSERVED">Asymmetric</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="INSUFFICIENT_DATA">Insufficient Data</button>
+          </div>
+        </div>
+
+        <!-- UTIE Overview KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card" style="--kpi-accent: #00e5ff">
+            <div class="kpi-header"><span>TOTAL ANALYZED</span></div>
+            <div id="utie-kpi-total" class="kpi-value">0</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #a855f7">
+            <div class="kpi-header"><span>UNIDIRECTIONAL OBSERVED</span></div>
+            <div id="utie-kpi-unidir" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #10b981">
+            <div class="kpi-header"><span>BIDIRECTIONAL OBSERVED</span></div>
+            <div id="utie-kpi-bidir" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #f59e0b">
+            <div class="kpi-header"><span>ASYMMETRIC OBSERVED</span></div>
+            <div id="utie-kpi-asym" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #8b949e">
+            <div class="kpi-header"><span>INSUFFICIENT DATA</span></div>
+            <div id="utie-kpi-insufficient" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #ef4444">
+            <div class="kpi-header"><span>SUSPICIOUS FLOWS</span></div>
+            <div id="utie-kpi-suspicious" class="kpi-value">0</div>
+          </div>
+        </div>
+
+        <!-- Sensor Visibility and Directionality Bar -->
+        <div class="soc-card" style="margin-top:16px;">
+          <div class="soc-card-header" style="display:flex; justify-content:space-between; align-items:center">
+            <span class="card-title">Observation Symmetry & Sensor Visibility Awareness</span>
+            <div style="display:flex; gap:12px; align-items:center">
+              <span id="utie-dist-text" style="font-family:var(--font-mono); font-size:11px; color:var(--accent-cyan)">
+                UNIDIRECTIONAL: 0% | BIDIRECTIONAL: 0% | ASYMMETRIC: 0% | INSUFFICIENT: 0%
+              </span>
+              <span id="utie-sensor-mode" class="card-badge" style="background:rgba(168,85,247,0.15); color:var(--accent-purple)">
+                SENSOR: PROMISCUOUS_TAP
+              </span>
+            </div>
+          </div>
+          <div class="dir-dist-bar" style="margin-top:8px">
+            <div id="utie-bar-unidir" class="dir-seg-oneway" style="width:25%"></div>
+            <div id="utie-bar-bidir" class="dir-seg-bidi" style="width:25%"></div>
+            <div id="utie-bar-asym" class="dir-seg-asym" style="width:25%"></div>
+            <div id="utie-bar-insuf" style="width:25%; background:#8b949e"></div>
+          </div>
+        </div>
+
+        <!-- UTIE Flow Intelligence Master Table -->
+        <div class="soc-card" style="margin-top:16px;">
+          <div class="soc-card-header" style="display:flex; justify-content:space-between; align-items:center">
+            <span class="card-title">Flow Intelligence Stream</span>
+            <div style="display:flex; gap:10px; align-items:center">
+              <input type="text" id="utie-search-input" placeholder="Search IP, Port, Flow ID..." style="background:rgba(15,23,42,0.8); border:1px solid var(--border-subtle); color:#fff; padding:4px 10px; border-radius:4px; font-size:12px; width:220px;" />
+              <span id="utie-table-count" style="font-size:11px; color:var(--text-muted)">0 flows</span>
+            </div>
+          </div>
+          <div class="table-wrapper" style="max-height:340px;">
+            <table class="soc-table">
+              <thead>
+                <tr>
+                  <th>Flow ID</th>
+                  <th>Source IP:Port</th>
+                  <th>Destination IP:Port</th>
+                  <th>Proto</th>
+                  <th>Directionality</th>
+                  <th>Packets (Fwd/Rev)</th>
+                  <th>Bytes</th>
+                  <th>Duration</th>
+                  <th>Anomaly Status</th>
+                  <th>Threat Class</th>
+                  <th>Risk Score</th>
+                </tr>
+              </thead>
+              <tbody id="utie-flow-tbody">
+                <tr><td colspan="11" style="text-align:center; color:var(--text-muted); padding:20px;">Awaiting UTIE flow intelligence reports...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- UTIE Split Inspector Panel -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:16px;">
+          <!-- Left: Directionality Evidence & Sensor Context -->
+          <div class="soc-card">
+            <div class="soc-card-header">
+              <span class="card-title">Directionality Assessment & Sensor Visibility</span>
+              <span id="utie-detail-badge" class="card-badge" style="background:rgba(0,229,255,0.15); color:var(--accent-cyan)">SELECT A FLOW</span>
+            </div>
+            <div id="utie-detail-evidence-content" style="font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c9d1d9; max-height:280px; overflow-y:auto; white-space:pre-wrap; padding:8px; background:rgba(15,23,42,0.7); border-radius:4px;">
+Select a flow record from the table above to view supporting directionality evidence, sensor visibility evaluation, and packet length statistics.
+            </div>
+          </div>
+
+          <!-- Right: Behavioral Profile & SOC Playbook -->
+          <div class="soc-card">
+            <div class="soc-card-header">
+              <span class="card-title">Traffic Behavior Dynamics & SOC Triage Playbook</span>
+              <span id="utie-detail-risk-badge" class="card-badge" style="background:rgba(16,185,129,0.15); color:var(--accent-green)">INTELLIGENCE READY</span>
+            </div>
+            <div id="utie-detail-behavior-content" style="font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c9d1d9; max-height:280px; overflow-y:auto; white-space:pre-wrap; padding:8px; background:rgba(15,23,42,0.7); border-radius:4px;">
+Select a flow to view packet size dispersion, inter-arrival time burstiness, TCP flag patterns, and actionable incident triage steps.
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- =====================================================================
            VIEW 5: FLOW INTELLIGENCE & 24-FEATURE TELEMETRY (OLD TAB 4 PARITY)
            ===================================================================== -->
       <div id="view-flow-intelligence" class="view-container">
@@ -773,6 +1414,133 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- =====================================================================
+           VIEW 6.5: UNIDIRECTIONAL TRAFFIC INTELLIGENCE ENGINE (UTIE) - SIH 2026
+           ===================================================================== -->
+      <div id="view-utie-intelligence" class="view-container">
+        <div class="view-header">
+          <div class="view-title-wrap">
+            <h1 class="view-title">Unidirectional Traffic Intelligence Engine (UTIE)</h1>
+            <span class="badge-tag" style="background:rgba(0,229,255,0.15); color:var(--accent-cyan)">SIH 2026 CORE INNOVATION</span>
+          </div>
+          <div class="soc-tabs">
+            <button class="soc-tab-btn active utie-filter-btn" data-dir="ALL">All Observations</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="UNIDIRECTIONAL_OBSERVED">Unidirectional</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="BIDIRECTIONAL_OBSERVED">Bidirectional</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="ASYMMETRIC_OBSERVED">Asymmetric</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="INSUFFICIENT_DATA">Insufficient Data</button>
+          </div>
+        </div>
+
+        <!-- UTIE Overview KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card" style="--kpi-accent: #00e5ff">
+            <div class="kpi-header"><span>TOTAL ANALYZED</span></div>
+            <div id="utie-kpi-total" class="kpi-value">0</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #a855f7">
+            <div class="kpi-header"><span>UNIDIRECTIONAL OBSERVED</span></div>
+            <div id="utie-kpi-unidir" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #10b981">
+            <div class="kpi-header"><span>BIDIRECTIONAL OBSERVED</span></div>
+            <div id="utie-kpi-bidir" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #f59e0b">
+            <div class="kpi-header"><span>ASYMMETRIC OBSERVED</span></div>
+            <div id="utie-kpi-asym" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #8b949e">
+            <div class="kpi-header"><span>INSUFFICIENT DATA</span></div>
+            <div id="utie-kpi-insufficient" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #ef4444">
+            <div class="kpi-header"><span>SUSPICIOUS FLOWS</span></div>
+            <div id="utie-kpi-suspicious" class="kpi-value">0</div>
+          </div>
+        </div>
+
+        <!-- Sensor Visibility and Directionality Bar -->
+        <div class="soc-card" style="margin-top:16px;">
+          <div class="soc-card-header" style="display:flex; justify-content:space-between; align-items:center">
+            <span class="card-title">Observation Symmetry & Sensor Visibility Awareness</span>
+            <div style="display:flex; gap:12px; align-items:center">
+              <span id="utie-dist-text" style="font-family:var(--font-mono); font-size:11px; color:var(--accent-cyan)">
+                UNIDIRECTIONAL: 0% | BIDIRECTIONAL: 0% | ASYMMETRIC: 0% | INSUFFICIENT: 0%
+              </span>
+              <span id="utie-sensor-mode" class="card-badge" style="background:rgba(168,85,247,0.15); color:var(--accent-purple)">
+                SENSOR: PROMISCUOUS_TAP
+              </span>
+            </div>
+          </div>
+          <div class="dir-dist-bar" style="margin-top:8px">
+            <div id="utie-bar-unidir" class="dir-seg-oneway" style="width:25%"></div>
+            <div id="utie-bar-bidir" class="dir-seg-bidi" style="width:25%"></div>
+            <div id="utie-bar-asym" class="dir-seg-asym" style="width:25%"></div>
+            <div id="utie-bar-insuf" style="width:25%; background:#8b949e"></div>
+          </div>
+        </div>
+
+        <!-- UTIE Flow Intelligence Master Table -->
+        <div class="soc-card" style="margin-top:16px;">
+          <div class="soc-card-header" style="display:flex; justify-content:space-between; align-items:center">
+            <span class="card-title">Flow Intelligence Stream</span>
+            <div style="display:flex; gap:10px; align-items:center">
+              <input type="text" id="utie-search-input" placeholder="Search IP, Port, Flow ID..." style="background:rgba(15,23,42,0.8); border:1px solid var(--border-subtle); color:#fff; padding:4px 10px; border-radius:4px; font-size:12px; width:220px;" />
+              <span id="utie-table-count" style="font-size:11px; color:var(--text-muted)">0 flows</span>
+            </div>
+          </div>
+          <div class="table-wrapper" style="max-height:340px;">
+            <table class="soc-table">
+              <thead>
+                <tr>
+                  <th>Flow ID</th>
+                  <th>Source IP:Port</th>
+                  <th>Destination IP:Port</th>
+                  <th>Proto</th>
+                  <th>Directionality</th>
+                  <th>Packets (Fwd/Rev)</th>
+                  <th>Bytes</th>
+                  <th>Duration</th>
+                  <th>Anomaly Status</th>
+                  <th>Threat Class</th>
+                  <th>Risk Score</th>
+                </tr>
+              </thead>
+              <tbody id="utie-flow-tbody">
+                <tr><td colspan="11" style="text-align:center; color:var(--text-muted); padding:20px;">Awaiting UTIE flow intelligence reports...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- UTIE Split Inspector Panel -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:16px;">
+          <!-- Left: Directionality Evidence & Sensor Context -->
+          <div class="soc-card">
+            <div class="soc-card-header">
+              <span class="card-title">Directionality Assessment & Sensor Visibility</span>
+              <span id="utie-detail-badge" class="card-badge" style="background:rgba(0,229,255,0.15); color:var(--accent-cyan)">SELECT A FLOW</span>
+            </div>
+            <div id="utie-detail-evidence-content" style="font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c9d1d9; max-height:280px; overflow-y:auto; white-space:pre-wrap; padding:8px; background:rgba(15,23,42,0.7); border-radius:4px;">
+Select a flow record from the table above to view supporting directionality evidence, sensor visibility evaluation, and packet length statistics.
+            </div>
+          </div>
+
+          <!-- Right: Behavioral Profile & SOC Playbook -->
+          <div class="soc-card">
+            <div class="soc-card-header">
+              <span class="card-title">Traffic Behavior Dynamics & SOC Triage Playbook</span>
+              <span id="utie-detail-risk-badge" class="card-badge" style="background:rgba(16,185,129,0.15); color:var(--accent-green)">INTELLIGENCE READY</span>
+            </div>
+            <div id="utie-detail-behavior-content" style="font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c9d1d9; max-height:280px; overflow-y:auto; white-space:pre-wrap; padding:8px; background:rgba(15,23,42,0.7); border-radius:4px;">
+Select a flow to view packet size dispersion, inter-arrival time burstiness, TCP flag patterns, and actionable incident triage steps.
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <!-- =====================================================================
@@ -882,6 +1650,258 @@
       </div>
 
       <!-- =====================================================================
+           VIEW 6.5: UNIDIRECTIONAL TRAFFIC INTELLIGENCE ENGINE (UTIE) - SIH 2026
+           ===================================================================== -->
+      <div id="view-utie-intelligence" class="view-container">
+        <div class="view-header">
+          <div class="view-title-wrap">
+            <h1 class="view-title">Unidirectional Traffic Intelligence Engine (UTIE)</h1>
+            <span class="badge-tag" style="background:rgba(0,229,255,0.15); color:var(--accent-cyan)">SIH 2026 CORE INNOVATION</span>
+          </div>
+          <div class="soc-tabs">
+            <button class="soc-tab-btn active utie-filter-btn" data-dir="ALL">All Observations</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="UNIDIRECTIONAL_OBSERVED">Unidirectional</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="BIDIRECTIONAL_OBSERVED">Bidirectional</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="ASYMMETRIC_OBSERVED">Asymmetric</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="INSUFFICIENT_DATA">Insufficient Data</button>
+          </div>
+        </div>
+
+        <!-- UTIE Overview KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card" style="--kpi-accent: #00e5ff">
+            <div class="kpi-header"><span>TOTAL ANALYZED</span></div>
+            <div id="utie-kpi-total" class="kpi-value">0</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #a855f7">
+            <div class="kpi-header"><span>UNIDIRECTIONAL OBSERVED</span></div>
+            <div id="utie-kpi-unidir" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #10b981">
+            <div class="kpi-header"><span>BIDIRECTIONAL OBSERVED</span></div>
+            <div id="utie-kpi-bidir" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #f59e0b">
+            <div class="kpi-header"><span>ASYMMETRIC OBSERVED</span></div>
+            <div id="utie-kpi-asym" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #8b949e">
+            <div class="kpi-header"><span>INSUFFICIENT DATA</span></div>
+            <div id="utie-kpi-insufficient" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #ef4444">
+            <div class="kpi-header"><span>SUSPICIOUS FLOWS</span></div>
+            <div id="utie-kpi-suspicious" class="kpi-value">0</div>
+          </div>
+        </div>
+
+        <!-- Sensor Visibility & Directionality Bar -->
+        <div class="soc-card" style="margin-top:16px;">
+          <div class="soc-card-header" style="display:flex; justify-content:space-between; align-items:center">
+            <span class="card-title">Observation Symmetry & Sensor Visibility Awareness</span>
+            <div style="display:flex; gap:12px; align-items:center">
+              <span id="utie-dist-text" style="font-family:var(--font-mono); font-size:11px; color:var(--accent-cyan)">
+                UNIDIRECTIONAL: 0% | BIDIRECTIONAL: 0% | ASYMMETRIC: 0% | INSUFFICIENT: 0%
+              </span>
+              <span id="utie-sensor-mode" class="card-badge" style="background:rgba(168,85,247,0.15); color:var(--accent-purple)">
+                SENSOR: PROMISCUOUS_TAP
+              </span>
+            </div>
+          </div>
+          <div class="dir-dist-bar" style="margin-top:8px">
+            <div id="utie-bar-unidir" class="dir-seg-oneway" style="width:25%"></div>
+            <div id="utie-bar-bidir" class="dir-seg-bidi" style="width:25%"></div>
+            <div id="utie-bar-asym" class="dir-seg-asym" style="width:25%"></div>
+            <div id="utie-bar-insuf" style="width:25%; background:#8b949e"></div>
+          </div>
+        </div>
+
+        <!-- Flow Intelligence Table -->
+        <div class="soc-card" style="margin-top:16px;">
+          <div class="soc-card-header" style="display:flex; justify-content:space-between; align-items:center">
+            <span class="card-title">Flow Intelligence Stream</span>
+            <div style="display:flex; gap:10px; align-items:center">
+              <input type="text" id="utie-search-input" placeholder="Search IP, Port, Flow ID..." style="background:rgba(15,23,42,0.8); border:1px solid var(--border-subtle); color:#fff; padding:4px 10px; border-radius:4px; font-size:12px; width:220px;" />
+              <span id="utie-table-count" style="font-size:11px; color:var(--text-muted)">0 flows</span>
+            </div>
+          </div>
+          <div class="table-wrapper" style="max-height:340px;">
+            <table class="soc-table">
+              <thead>
+                <tr>
+                  <th>Flow ID</th>
+                  <th>Source IP:Port</th>
+                  <th>Destination IP:Port</th>
+                  <th>Proto</th>
+                  <th>Directionality</th>
+                  <th>Packets (Fwd/Rev)</th>
+                  <th>Bytes</th>
+                  <th>Duration</th>
+                  <th>Anomaly Status</th>
+                  <th>Threat Class</th>
+                  <th>Risk Score</th>
+                </tr>
+              </thead>
+              <tbody id="utie-flow-tbody">
+                <tr><td colspan="11" style="text-align:center; color:var(--text-muted); padding:20px;">Awaiting UTIE flow intelligence reports...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Split Detail Panel -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:16px;">
+          <div class="soc-card">
+            <div class="soc-card-header">
+              <span class="card-title">Directionality Assessment & Sensor Visibility</span>
+              <span id="utie-detail-badge" class="card-badge" style="background:rgba(0,229,255,0.15); color:var(--accent-cyan)">SELECT A FLOW</span>
+            </div>
+            <div id="utie-detail-evidence-content" style="font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c9d1d9; max-height:280px; overflow-y:auto; white-space:pre-wrap; padding:8px; background:rgba(15,23,42,0.7); border-radius:4px;">
+Select a flow record from the table above to view supporting directionality evidence, sensor visibility evaluation, and packet length statistics.
+            </div>
+          </div>
+
+          <div class="soc-card">
+            <div class="soc-card-header">
+              <span class="card-title">Traffic Behavior Dynamics & SOC Triage Playbook</span>
+              <span id="utie-detail-risk-badge" class="card-badge" style="background:rgba(16,185,129,0.15); color:var(--accent-green)">INTELLIGENCE READY</span>
+            </div>
+            <div id="utie-detail-behavior-content" style="font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c9d1d9; max-height:280px; overflow-y:auto; white-space:pre-wrap; padding:8px; background:rgba(15,23,42,0.7); border-radius:4px;">
+Select a flow to view packet size dispersion, inter-arrival time burstiness, TCP flag patterns, and actionable incident triage steps.
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- =====================================================================
+           VIEW 6.5: UNIDIRECTIONAL TRAFFIC INTELLIGENCE ENGINE (UTIE) - SIH 2026
+           ===================================================================== -->
+      <div id="view-utie-intelligence" class="view-container">
+        <div class="view-header">
+          <div class="view-title-wrap">
+            <h1 class="view-title">Unidirectional Traffic Intelligence Engine (UTIE)</h1>
+            <span class="badge-tag" style="background:rgba(0,229,255,0.15); color:var(--accent-cyan)">SIH 2026 CORE INNOVATION</span>
+          </div>
+          <div class="soc-tabs">
+            <button class="soc-tab-btn active utie-filter-btn" data-dir="ALL">All Observations</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="UNIDIRECTIONAL_OBSERVED">Unidirectional</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="BIDIRECTIONAL_OBSERVED">Bidirectional</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="ASYMMETRIC_OBSERVED">Asymmetric</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="INSUFFICIENT_DATA">Insufficient Data</button>
+          </div>
+        </div>
+
+        <!-- UTIE Overview KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card" style="--kpi-accent: #00e5ff">
+            <div class="kpi-header"><span>TOTAL ANALYZED</span></div>
+            <div id="utie-kpi-total" class="kpi-value">0</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #a855f7">
+            <div class="kpi-header"><span>UNIDIRECTIONAL OBSERVED</span></div>
+            <div id="utie-kpi-unidir" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #10b981">
+            <div class="kpi-header"><span>BIDIRECTIONAL OBSERVED</span></div>
+            <div id="utie-kpi-bidir" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #f59e0b">
+            <div class="kpi-header"><span>ASYMMETRIC OBSERVED</span></div>
+            <div id="utie-kpi-asym" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #8b949e">
+            <div class="kpi-header"><span>INSUFFICIENT DATA</span></div>
+            <div id="utie-kpi-insufficient" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #ef4444">
+            <div class="kpi-header"><span>SUSPICIOUS FLOWS</span></div>
+            <div id="utie-kpi-suspicious" class="kpi-value">0</div>
+          </div>
+        </div>
+
+        <!-- Sensor Visibility and Directionality Bar -->
+        <div class="soc-card" style="margin-top:16px;">
+          <div class="soc-card-header" style="display:flex; justify-content:space-between; align-items:center">
+            <span class="card-title">Observation Symmetry & Sensor Visibility Awareness</span>
+            <div style="display:flex; gap:12px; align-items:center">
+              <span id="utie-dist-text" style="font-family:var(--font-mono); font-size:11px; color:var(--accent-cyan)">
+                UNIDIRECTIONAL: 0% | BIDIRECTIONAL: 0% | ASYMMETRIC: 0% | INSUFFICIENT: 0%
+              </span>
+              <span id="utie-sensor-mode" class="card-badge" style="background:rgba(168,85,247,0.15); color:var(--accent-purple)">
+                SENSOR: PROMISCUOUS_TAP
+              </span>
+            </div>
+          </div>
+          <div class="dir-dist-bar" style="margin-top:8px">
+            <div id="utie-bar-unidir" class="dir-seg-oneway" style="width:25%"></div>
+            <div id="utie-bar-bidir" class="dir-seg-bidi" style="width:25%"></div>
+            <div id="utie-bar-asym" class="dir-seg-asym" style="width:25%"></div>
+            <div id="utie-bar-insuf" style="width:25%; background:#8b949e"></div>
+          </div>
+        </div>
+
+        <!-- UTIE Flow Intelligence Master Table -->
+        <div class="soc-card" style="margin-top:16px;">
+          <div class="soc-card-header" style="display:flex; justify-content:space-between; align-items:center">
+            <span class="card-title">Flow Intelligence Stream</span>
+            <div style="display:flex; gap:10px; align-items:center">
+              <input type="text" id="utie-search-input" placeholder="Search IP, Port, Flow ID..." style="background:rgba(15,23,42,0.8); border:1px solid var(--border-subtle); color:#fff; padding:4px 10px; border-radius:4px; font-size:12px; width:220px;" />
+              <span id="utie-table-count" style="font-size:11px; color:var(--text-muted)">0 flows</span>
+            </div>
+          </div>
+          <div class="table-wrapper" style="max-height:340px;">
+            <table class="soc-table">
+              <thead>
+                <tr>
+                  <th>Flow ID</th>
+                  <th>Source IP:Port</th>
+                  <th>Destination IP:Port</th>
+                  <th>Proto</th>
+                  <th>Directionality</th>
+                  <th>Packets (Fwd/Rev)</th>
+                  <th>Bytes</th>
+                  <th>Duration</th>
+                  <th>Anomaly Status</th>
+                  <th>Threat Class</th>
+                  <th>Risk Score</th>
+                </tr>
+              </thead>
+              <tbody id="utie-flow-tbody">
+                <tr><td colspan="11" style="text-align:center; color:var(--text-muted); padding:20px;">Awaiting UTIE flow intelligence reports...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- UTIE Split Inspector Panel -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:16px;">
+          <!-- Left: Directionality Evidence & Sensor Context -->
+          <div class="soc-card">
+            <div class="soc-card-header">
+              <span class="card-title">Directionality Assessment & Sensor Visibility</span>
+              <span id="utie-detail-badge" class="card-badge" style="background:rgba(0,229,255,0.15); color:var(--accent-cyan)">SELECT A FLOW</span>
+            </div>
+            <div id="utie-detail-evidence-content" style="font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c9d1d9; max-height:280px; overflow-y:auto; white-space:pre-wrap; padding:8px; background:rgba(15,23,42,0.7); border-radius:4px;">
+Select a flow record from the table above to view supporting directionality evidence, sensor visibility evaluation, and packet length statistics.
+            </div>
+          </div>
+
+          <!-- Right: Behavioral Profile & SOC Playbook -->
+          <div class="soc-card">
+            <div class="soc-card-header">
+              <span class="card-title">Traffic Behavior Dynamics & SOC Triage Playbook</span>
+              <span id="utie-detail-risk-badge" class="card-badge" style="background:rgba(16,185,129,0.15); color:var(--accent-green)">INTELLIGENCE READY</span>
+            </div>
+            <div id="utie-detail-behavior-content" style="font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c9d1d9; max-height:280px; overflow-y:auto; white-space:pre-wrap; padding:8px; background:rgba(15,23,42,0.7); border-radius:4px;">
+Select a flow to view packet size dispersion, inter-arrival time burstiness, TCP flag patterns, and actionable incident triage steps.
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- =====================================================================
            VIEW 7: TRAFFIC ANALYTICS & TOP TALKERS (OLD TAB 5 PARITY)
            ===================================================================== -->
       <div id="view-traffic-analytics" class="view-container">
@@ -983,6 +2003,133 @@
       </div>
 
       <!-- =====================================================================
+           VIEW 6.5: UNIDIRECTIONAL TRAFFIC INTELLIGENCE ENGINE (UTIE) - SIH 2026
+           ===================================================================== -->
+      <div id="view-utie-intelligence" class="view-container">
+        <div class="view-header">
+          <div class="view-title-wrap">
+            <h1 class="view-title">Unidirectional Traffic Intelligence Engine (UTIE)</h1>
+            <span class="badge-tag" style="background:rgba(0,229,255,0.15); color:var(--accent-cyan)">SIH 2026 CORE INNOVATION</span>
+          </div>
+          <div class="soc-tabs">
+            <button class="soc-tab-btn active utie-filter-btn" data-dir="ALL">All Observations</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="UNIDIRECTIONAL_OBSERVED">Unidirectional</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="BIDIRECTIONAL_OBSERVED">Bidirectional</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="ASYMMETRIC_OBSERVED">Asymmetric</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="INSUFFICIENT_DATA">Insufficient Data</button>
+          </div>
+        </div>
+
+        <!-- UTIE Overview KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card" style="--kpi-accent: #00e5ff">
+            <div class="kpi-header"><span>TOTAL ANALYZED</span></div>
+            <div id="utie-kpi-total" class="kpi-value">0</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #a855f7">
+            <div class="kpi-header"><span>UNIDIRECTIONAL OBSERVED</span></div>
+            <div id="utie-kpi-unidir" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #10b981">
+            <div class="kpi-header"><span>BIDIRECTIONAL OBSERVED</span></div>
+            <div id="utie-kpi-bidir" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #f59e0b">
+            <div class="kpi-header"><span>ASYMMETRIC OBSERVED</span></div>
+            <div id="utie-kpi-asym" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #8b949e">
+            <div class="kpi-header"><span>INSUFFICIENT DATA</span></div>
+            <div id="utie-kpi-insufficient" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #ef4444">
+            <div class="kpi-header"><span>SUSPICIOUS FLOWS</span></div>
+            <div id="utie-kpi-suspicious" class="kpi-value">0</div>
+          </div>
+        </div>
+
+        <!-- Sensor Visibility and Directionality Bar -->
+        <div class="soc-card" style="margin-top:16px;">
+          <div class="soc-card-header" style="display:flex; justify-content:space-between; align-items:center">
+            <span class="card-title">Observation Symmetry & Sensor Visibility Awareness</span>
+            <div style="display:flex; gap:12px; align-items:center">
+              <span id="utie-dist-text" style="font-family:var(--font-mono); font-size:11px; color:var(--accent-cyan)">
+                UNIDIRECTIONAL: 0% | BIDIRECTIONAL: 0% | ASYMMETRIC: 0% | INSUFFICIENT: 0%
+              </span>
+              <span id="utie-sensor-mode" class="card-badge" style="background:rgba(168,85,247,0.15); color:var(--accent-purple)">
+                SENSOR: PROMISCUOUS_TAP
+              </span>
+            </div>
+          </div>
+          <div class="dir-dist-bar" style="margin-top:8px">
+            <div id="utie-bar-unidir" class="dir-seg-oneway" style="width:25%"></div>
+            <div id="utie-bar-bidir" class="dir-seg-bidi" style="width:25%"></div>
+            <div id="utie-bar-asym" class="dir-seg-asym" style="width:25%"></div>
+            <div id="utie-bar-insuf" style="width:25%; background:#8b949e"></div>
+          </div>
+        </div>
+
+        <!-- UTIE Flow Intelligence Master Table -->
+        <div class="soc-card" style="margin-top:16px;">
+          <div class="soc-card-header" style="display:flex; justify-content:space-between; align-items:center">
+            <span class="card-title">Flow Intelligence Stream</span>
+            <div style="display:flex; gap:10px; align-items:center">
+              <input type="text" id="utie-search-input" placeholder="Search IP, Port, Flow ID..." style="background:rgba(15,23,42,0.8); border:1px solid var(--border-subtle); color:#fff; padding:4px 10px; border-radius:4px; font-size:12px; width:220px;" />
+              <span id="utie-table-count" style="font-size:11px; color:var(--text-muted)">0 flows</span>
+            </div>
+          </div>
+          <div class="table-wrapper" style="max-height:340px;">
+            <table class="soc-table">
+              <thead>
+                <tr>
+                  <th>Flow ID</th>
+                  <th>Source IP:Port</th>
+                  <th>Destination IP:Port</th>
+                  <th>Proto</th>
+                  <th>Directionality</th>
+                  <th>Packets (Fwd/Rev)</th>
+                  <th>Bytes</th>
+                  <th>Duration</th>
+                  <th>Anomaly Status</th>
+                  <th>Threat Class</th>
+                  <th>Risk Score</th>
+                </tr>
+              </thead>
+              <tbody id="utie-flow-tbody">
+                <tr><td colspan="11" style="text-align:center; color:var(--text-muted); padding:20px;">Awaiting UTIE flow intelligence reports...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- UTIE Split Inspector Panel -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:16px;">
+          <!-- Left: Directionality Evidence & Sensor Context -->
+          <div class="soc-card">
+            <div class="soc-card-header">
+              <span class="card-title">Directionality Assessment & Sensor Visibility</span>
+              <span id="utie-detail-badge" class="card-badge" style="background:rgba(0,229,255,0.15); color:var(--accent-cyan)">SELECT A FLOW</span>
+            </div>
+            <div id="utie-detail-evidence-content" style="font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c9d1d9; max-height:280px; overflow-y:auto; white-space:pre-wrap; padding:8px; background:rgba(15,23,42,0.7); border-radius:4px;">
+Select a flow record from the table above to view supporting directionality evidence, sensor visibility evaluation, and packet length statistics.
+            </div>
+          </div>
+
+          <!-- Right: Behavioral Profile & SOC Playbook -->
+          <div class="soc-card">
+            <div class="soc-card-header">
+              <span class="card-title">Traffic Behavior Dynamics & SOC Triage Playbook</span>
+              <span id="utie-detail-risk-badge" class="card-badge" style="background:rgba(16,185,129,0.15); color:var(--accent-green)">INTELLIGENCE READY</span>
+            </div>
+            <div id="utie-detail-behavior-content" style="font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c9d1d9; max-height:280px; overflow-y:auto; white-space:pre-wrap; padding:8px; background:rgba(15,23,42,0.7); border-radius:4px;">
+Select a flow to view packet size dispersion, inter-arrival time burstiness, TCP flag patterns, and actionable incident triage steps.
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- =====================================================================
            VIEW 8: MODEL / AI STATUS & XAI (OLD TAB 6 & TAB 3 PARITY)
            ===================================================================== -->
       <div id="view-ai-analytics" class="view-container">
@@ -1016,6 +2163,133 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- =====================================================================
+           VIEW 6.5: UNIDIRECTIONAL TRAFFIC INTELLIGENCE ENGINE (UTIE) - SIH 2026
+           ===================================================================== -->
+      <div id="view-utie-intelligence" class="view-container">
+        <div class="view-header">
+          <div class="view-title-wrap">
+            <h1 class="view-title">Unidirectional Traffic Intelligence Engine (UTIE)</h1>
+            <span class="badge-tag" style="background:rgba(0,229,255,0.15); color:var(--accent-cyan)">SIH 2026 CORE INNOVATION</span>
+          </div>
+          <div class="soc-tabs">
+            <button class="soc-tab-btn active utie-filter-btn" data-dir="ALL">All Observations</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="UNIDIRECTIONAL_OBSERVED">Unidirectional</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="BIDIRECTIONAL_OBSERVED">Bidirectional</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="ASYMMETRIC_OBSERVED">Asymmetric</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="INSUFFICIENT_DATA">Insufficient Data</button>
+          </div>
+        </div>
+
+        <!-- UTIE Overview KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card" style="--kpi-accent: #00e5ff">
+            <div class="kpi-header"><span>TOTAL ANALYZED</span></div>
+            <div id="utie-kpi-total" class="kpi-value">0</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #a855f7">
+            <div class="kpi-header"><span>UNIDIRECTIONAL OBSERVED</span></div>
+            <div id="utie-kpi-unidir" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #10b981">
+            <div class="kpi-header"><span>BIDIRECTIONAL OBSERVED</span></div>
+            <div id="utie-kpi-bidir" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #f59e0b">
+            <div class="kpi-header"><span>ASYMMETRIC OBSERVED</span></div>
+            <div id="utie-kpi-asym" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #8b949e">
+            <div class="kpi-header"><span>INSUFFICIENT DATA</span></div>
+            <div id="utie-kpi-insufficient" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #ef4444">
+            <div class="kpi-header"><span>SUSPICIOUS FLOWS</span></div>
+            <div id="utie-kpi-suspicious" class="kpi-value">0</div>
+          </div>
+        </div>
+
+        <!-- Sensor Visibility and Directionality Bar -->
+        <div class="soc-card" style="margin-top:16px;">
+          <div class="soc-card-header" style="display:flex; justify-content:space-between; align-items:center">
+            <span class="card-title">Observation Symmetry & Sensor Visibility Awareness</span>
+            <div style="display:flex; gap:12px; align-items:center">
+              <span id="utie-dist-text" style="font-family:var(--font-mono); font-size:11px; color:var(--accent-cyan)">
+                UNIDIRECTIONAL: 0% | BIDIRECTIONAL: 0% | ASYMMETRIC: 0% | INSUFFICIENT: 0%
+              </span>
+              <span id="utie-sensor-mode" class="card-badge" style="background:rgba(168,85,247,0.15); color:var(--accent-purple)">
+                SENSOR: PROMISCUOUS_TAP
+              </span>
+            </div>
+          </div>
+          <div class="dir-dist-bar" style="margin-top:8px">
+            <div id="utie-bar-unidir" class="dir-seg-oneway" style="width:25%"></div>
+            <div id="utie-bar-bidir" class="dir-seg-bidi" style="width:25%"></div>
+            <div id="utie-bar-asym" class="dir-seg-asym" style="width:25%"></div>
+            <div id="utie-bar-insuf" style="width:25%; background:#8b949e"></div>
+          </div>
+        </div>
+
+        <!-- UTIE Flow Intelligence Master Table -->
+        <div class="soc-card" style="margin-top:16px;">
+          <div class="soc-card-header" style="display:flex; justify-content:space-between; align-items:center">
+            <span class="card-title">Flow Intelligence Stream</span>
+            <div style="display:flex; gap:10px; align-items:center">
+              <input type="text" id="utie-search-input" placeholder="Search IP, Port, Flow ID..." style="background:rgba(15,23,42,0.8); border:1px solid var(--border-subtle); color:#fff; padding:4px 10px; border-radius:4px; font-size:12px; width:220px;" />
+              <span id="utie-table-count" style="font-size:11px; color:var(--text-muted)">0 flows</span>
+            </div>
+          </div>
+          <div class="table-wrapper" style="max-height:340px;">
+            <table class="soc-table">
+              <thead>
+                <tr>
+                  <th>Flow ID</th>
+                  <th>Source IP:Port</th>
+                  <th>Destination IP:Port</th>
+                  <th>Proto</th>
+                  <th>Directionality</th>
+                  <th>Packets (Fwd/Rev)</th>
+                  <th>Bytes</th>
+                  <th>Duration</th>
+                  <th>Anomaly Status</th>
+                  <th>Threat Class</th>
+                  <th>Risk Score</th>
+                </tr>
+              </thead>
+              <tbody id="utie-flow-tbody">
+                <tr><td colspan="11" style="text-align:center; color:var(--text-muted); padding:20px;">Awaiting UTIE flow intelligence reports...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- UTIE Split Inspector Panel -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:16px;">
+          <!-- Left: Directionality Evidence & Sensor Context -->
+          <div class="soc-card">
+            <div class="soc-card-header">
+              <span class="card-title">Directionality Assessment & Sensor Visibility</span>
+              <span id="utie-detail-badge" class="card-badge" style="background:rgba(0,229,255,0.15); color:var(--accent-cyan)">SELECT A FLOW</span>
+            </div>
+            <div id="utie-detail-evidence-content" style="font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c9d1d9; max-height:280px; overflow-y:auto; white-space:pre-wrap; padding:8px; background:rgba(15,23,42,0.7); border-radius:4px;">
+Select a flow record from the table above to view supporting directionality evidence, sensor visibility evaluation, and packet length statistics.
+            </div>
+          </div>
+
+          <!-- Right: Behavioral Profile & SOC Playbook -->
+          <div class="soc-card">
+            <div class="soc-card-header">
+              <span class="card-title">Traffic Behavior Dynamics & SOC Triage Playbook</span>
+              <span id="utie-detail-risk-badge" class="card-badge" style="background:rgba(16,185,129,0.15); color:var(--accent-green)">INTELLIGENCE READY</span>
+            </div>
+            <div id="utie-detail-behavior-content" style="font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c9d1d9; max-height:280px; overflow-y:auto; white-space:pre-wrap; padding:8px; background:rgba(15,23,42,0.7); border-radius:4px;">
+Select a flow to view packet size dispersion, inter-arrival time burstiness, TCP flag patterns, and actionable incident triage steps.
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <!-- =====================================================================
@@ -1058,6 +2332,133 @@
       </div>
 
       <!-- =====================================================================
+           VIEW 6.5: UNIDIRECTIONAL TRAFFIC INTELLIGENCE ENGINE (UTIE) - SIH 2026
+           ===================================================================== -->
+      <div id="view-utie-intelligence" class="view-container">
+        <div class="view-header">
+          <div class="view-title-wrap">
+            <h1 class="view-title">Unidirectional Traffic Intelligence Engine (UTIE)</h1>
+            <span class="badge-tag" style="background:rgba(0,229,255,0.15); color:var(--accent-cyan)">SIH 2026 CORE INNOVATION</span>
+          </div>
+          <div class="soc-tabs">
+            <button class="soc-tab-btn active utie-filter-btn" data-dir="ALL">All Observations</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="UNIDIRECTIONAL_OBSERVED">Unidirectional</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="BIDIRECTIONAL_OBSERVED">Bidirectional</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="ASYMMETRIC_OBSERVED">Asymmetric</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="INSUFFICIENT_DATA">Insufficient Data</button>
+          </div>
+        </div>
+
+        <!-- UTIE Overview KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card" style="--kpi-accent: #00e5ff">
+            <div class="kpi-header"><span>TOTAL ANALYZED</span></div>
+            <div id="utie-kpi-total" class="kpi-value">0</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #a855f7">
+            <div class="kpi-header"><span>UNIDIRECTIONAL OBSERVED</span></div>
+            <div id="utie-kpi-unidir" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #10b981">
+            <div class="kpi-header"><span>BIDIRECTIONAL OBSERVED</span></div>
+            <div id="utie-kpi-bidir" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #f59e0b">
+            <div class="kpi-header"><span>ASYMMETRIC OBSERVED</span></div>
+            <div id="utie-kpi-asym" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #8b949e">
+            <div class="kpi-header"><span>INSUFFICIENT DATA</span></div>
+            <div id="utie-kpi-insufficient" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #ef4444">
+            <div class="kpi-header"><span>SUSPICIOUS FLOWS</span></div>
+            <div id="utie-kpi-suspicious" class="kpi-value">0</div>
+          </div>
+        </div>
+
+        <!-- Sensor Visibility and Directionality Bar -->
+        <div class="soc-card" style="margin-top:16px;">
+          <div class="soc-card-header" style="display:flex; justify-content:space-between; align-items:center">
+            <span class="card-title">Observation Symmetry & Sensor Visibility Awareness</span>
+            <div style="display:flex; gap:12px; align-items:center">
+              <span id="utie-dist-text" style="font-family:var(--font-mono); font-size:11px; color:var(--accent-cyan)">
+                UNIDIRECTIONAL: 0% | BIDIRECTIONAL: 0% | ASYMMETRIC: 0% | INSUFFICIENT: 0%
+              </span>
+              <span id="utie-sensor-mode" class="card-badge" style="background:rgba(168,85,247,0.15); color:var(--accent-purple)">
+                SENSOR: PROMISCUOUS_TAP
+              </span>
+            </div>
+          </div>
+          <div class="dir-dist-bar" style="margin-top:8px">
+            <div id="utie-bar-unidir" class="dir-seg-oneway" style="width:25%"></div>
+            <div id="utie-bar-bidir" class="dir-seg-bidi" style="width:25%"></div>
+            <div id="utie-bar-asym" class="dir-seg-asym" style="width:25%"></div>
+            <div id="utie-bar-insuf" style="width:25%; background:#8b949e"></div>
+          </div>
+        </div>
+
+        <!-- UTIE Flow Intelligence Master Table -->
+        <div class="soc-card" style="margin-top:16px;">
+          <div class="soc-card-header" style="display:flex; justify-content:space-between; align-items:center">
+            <span class="card-title">Flow Intelligence Stream</span>
+            <div style="display:flex; gap:10px; align-items:center">
+              <input type="text" id="utie-search-input" placeholder="Search IP, Port, Flow ID..." style="background:rgba(15,23,42,0.8); border:1px solid var(--border-subtle); color:#fff; padding:4px 10px; border-radius:4px; font-size:12px; width:220px;" />
+              <span id="utie-table-count" style="font-size:11px; color:var(--text-muted)">0 flows</span>
+            </div>
+          </div>
+          <div class="table-wrapper" style="max-height:340px;">
+            <table class="soc-table">
+              <thead>
+                <tr>
+                  <th>Flow ID</th>
+                  <th>Source IP:Port</th>
+                  <th>Destination IP:Port</th>
+                  <th>Proto</th>
+                  <th>Directionality</th>
+                  <th>Packets (Fwd/Rev)</th>
+                  <th>Bytes</th>
+                  <th>Duration</th>
+                  <th>Anomaly Status</th>
+                  <th>Threat Class</th>
+                  <th>Risk Score</th>
+                </tr>
+              </thead>
+              <tbody id="utie-flow-tbody">
+                <tr><td colspan="11" style="text-align:center; color:var(--text-muted); padding:20px;">Awaiting UTIE flow intelligence reports...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- UTIE Split Inspector Panel -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:16px;">
+          <!-- Left: Directionality Evidence & Sensor Context -->
+          <div class="soc-card">
+            <div class="soc-card-header">
+              <span class="card-title">Directionality Assessment & Sensor Visibility</span>
+              <span id="utie-detail-badge" class="card-badge" style="background:rgba(0,229,255,0.15); color:var(--accent-cyan)">SELECT A FLOW</span>
+            </div>
+            <div id="utie-detail-evidence-content" style="font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c9d1d9; max-height:280px; overflow-y:auto; white-space:pre-wrap; padding:8px; background:rgba(15,23,42,0.7); border-radius:4px;">
+Select a flow record from the table above to view supporting directionality evidence, sensor visibility evaluation, and packet length statistics.
+            </div>
+          </div>
+
+          <!-- Right: Behavioral Profile & SOC Playbook -->
+          <div class="soc-card">
+            <div class="soc-card-header">
+              <span class="card-title">Traffic Behavior Dynamics & SOC Triage Playbook</span>
+              <span id="utie-detail-risk-badge" class="card-badge" style="background:rgba(16,185,129,0.15); color:var(--accent-green)">INTELLIGENCE READY</span>
+            </div>
+            <div id="utie-detail-behavior-content" style="font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c9d1d9; max-height:280px; overflow-y:auto; white-space:pre-wrap; padding:8px; background:rgba(15,23,42,0.7); border-radius:4px;">
+Select a flow to view packet size dispersion, inter-arrival time burstiness, TCP flag patterns, and actionable incident triage steps.
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- =====================================================================
            VIEW 10: REPORTS & EXPORTS
            ===================================================================== -->
       <div id="view-reports" class="view-container">
@@ -1072,6 +2473,133 @@
             <button class="btn-start-stop" style="width:auto; padding:8px 16px; background:rgba(255,255,255,0.08); color:#fff" onclick="window.print()">Print SOC PDF</button>
           </div>
         </div>
+      </div>
+
+      <!-- =====================================================================
+           VIEW 6.5: UNIDIRECTIONAL TRAFFIC INTELLIGENCE ENGINE (UTIE) - SIH 2026
+           ===================================================================== -->
+      <div id="view-utie-intelligence" class="view-container">
+        <div class="view-header">
+          <div class="view-title-wrap">
+            <h1 class="view-title">Unidirectional Traffic Intelligence Engine (UTIE)</h1>
+            <span class="badge-tag" style="background:rgba(0,229,255,0.15); color:var(--accent-cyan)">SIH 2026 CORE INNOVATION</span>
+          </div>
+          <div class="soc-tabs">
+            <button class="soc-tab-btn active utie-filter-btn" data-dir="ALL">All Observations</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="UNIDIRECTIONAL_OBSERVED">Unidirectional</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="BIDIRECTIONAL_OBSERVED">Bidirectional</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="ASYMMETRIC_OBSERVED">Asymmetric</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="INSUFFICIENT_DATA">Insufficient Data</button>
+          </div>
+        </div>
+
+        <!-- UTIE Overview KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card" style="--kpi-accent: #00e5ff">
+            <div class="kpi-header"><span>TOTAL ANALYZED</span></div>
+            <div id="utie-kpi-total" class="kpi-value">0</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #a855f7">
+            <div class="kpi-header"><span>UNIDIRECTIONAL OBSERVED</span></div>
+            <div id="utie-kpi-unidir" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #10b981">
+            <div class="kpi-header"><span>BIDIRECTIONAL OBSERVED</span></div>
+            <div id="utie-kpi-bidir" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #f59e0b">
+            <div class="kpi-header"><span>ASYMMETRIC OBSERVED</span></div>
+            <div id="utie-kpi-asym" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #8b949e">
+            <div class="kpi-header"><span>INSUFFICIENT DATA</span></div>
+            <div id="utie-kpi-insufficient" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #ef4444">
+            <div class="kpi-header"><span>SUSPICIOUS FLOWS</span></div>
+            <div id="utie-kpi-suspicious" class="kpi-value">0</div>
+          </div>
+        </div>
+
+        <!-- Sensor Visibility and Directionality Bar -->
+        <div class="soc-card" style="margin-top:16px;">
+          <div class="soc-card-header" style="display:flex; justify-content:space-between; align-items:center">
+            <span class="card-title">Observation Symmetry & Sensor Visibility Awareness</span>
+            <div style="display:flex; gap:12px; align-items:center">
+              <span id="utie-dist-text" style="font-family:var(--font-mono); font-size:11px; color:var(--accent-cyan)">
+                UNIDIRECTIONAL: 0% | BIDIRECTIONAL: 0% | ASYMMETRIC: 0% | INSUFFICIENT: 0%
+              </span>
+              <span id="utie-sensor-mode" class="card-badge" style="background:rgba(168,85,247,0.15); color:var(--accent-purple)">
+                SENSOR: PROMISCUOUS_TAP
+              </span>
+            </div>
+          </div>
+          <div class="dir-dist-bar" style="margin-top:8px">
+            <div id="utie-bar-unidir" class="dir-seg-oneway" style="width:25%"></div>
+            <div id="utie-bar-bidir" class="dir-seg-bidi" style="width:25%"></div>
+            <div id="utie-bar-asym" class="dir-seg-asym" style="width:25%"></div>
+            <div id="utie-bar-insuf" style="width:25%; background:#8b949e"></div>
+          </div>
+        </div>
+
+        <!-- UTIE Flow Intelligence Master Table -->
+        <div class="soc-card" style="margin-top:16px;">
+          <div class="soc-card-header" style="display:flex; justify-content:space-between; align-items:center">
+            <span class="card-title">Flow Intelligence Stream</span>
+            <div style="display:flex; gap:10px; align-items:center">
+              <input type="text" id="utie-search-input" placeholder="Search IP, Port, Flow ID..." style="background:rgba(15,23,42,0.8); border:1px solid var(--border-subtle); color:#fff; padding:4px 10px; border-radius:4px; font-size:12px; width:220px;" />
+              <span id="utie-table-count" style="font-size:11px; color:var(--text-muted)">0 flows</span>
+            </div>
+          </div>
+          <div class="table-wrapper" style="max-height:340px;">
+            <table class="soc-table">
+              <thead>
+                <tr>
+                  <th>Flow ID</th>
+                  <th>Source IP:Port</th>
+                  <th>Destination IP:Port</th>
+                  <th>Proto</th>
+                  <th>Directionality</th>
+                  <th>Packets (Fwd/Rev)</th>
+                  <th>Bytes</th>
+                  <th>Duration</th>
+                  <th>Anomaly Status</th>
+                  <th>Threat Class</th>
+                  <th>Risk Score</th>
+                </tr>
+              </thead>
+              <tbody id="utie-flow-tbody">
+                <tr><td colspan="11" style="text-align:center; color:var(--text-muted); padding:20px;">Awaiting UTIE flow intelligence reports...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- UTIE Split Inspector Panel -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:16px;">
+          <!-- Left: Directionality Evidence & Sensor Context -->
+          <div class="soc-card">
+            <div class="soc-card-header">
+              <span class="card-title">Directionality Assessment & Sensor Visibility</span>
+              <span id="utie-detail-badge" class="card-badge" style="background:rgba(0,229,255,0.15); color:var(--accent-cyan)">SELECT A FLOW</span>
+            </div>
+            <div id="utie-detail-evidence-content" style="font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c9d1d9; max-height:280px; overflow-y:auto; white-space:pre-wrap; padding:8px; background:rgba(15,23,42,0.7); border-radius:4px;">
+Select a flow record from the table above to view supporting directionality evidence, sensor visibility evaluation, and packet length statistics.
+            </div>
+          </div>
+
+          <!-- Right: Behavioral Profile & SOC Playbook -->
+          <div class="soc-card">
+            <div class="soc-card-header">
+              <span class="card-title">Traffic Behavior Dynamics & SOC Triage Playbook</span>
+              <span id="utie-detail-risk-badge" class="card-badge" style="background:rgba(16,185,129,0.15); color:var(--accent-green)">INTELLIGENCE READY</span>
+            </div>
+            <div id="utie-detail-behavior-content" style="font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c9d1d9; max-height:280px; overflow-y:auto; white-space:pre-wrap; padding:8px; background:rgba(15,23,42,0.7); border-radius:4px;">
+Select a flow to view packet size dispersion, inter-arrival time burstiness, TCP flag patterns, and actionable incident triage steps.
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <!-- =====================================================================
@@ -1104,6 +2632,133 @@
             </button>
           </div>
         </div>
+      </div>
+
+      <!-- =====================================================================
+           VIEW 6.5: UNIDIRECTIONAL TRAFFIC INTELLIGENCE ENGINE (UTIE) - SIH 2026
+           ===================================================================== -->
+      <div id="view-utie-intelligence" class="view-container">
+        <div class="view-header">
+          <div class="view-title-wrap">
+            <h1 class="view-title">Unidirectional Traffic Intelligence Engine (UTIE)</h1>
+            <span class="badge-tag" style="background:rgba(0,229,255,0.15); color:var(--accent-cyan)">SIH 2026 CORE INNOVATION</span>
+          </div>
+          <div class="soc-tabs">
+            <button class="soc-tab-btn active utie-filter-btn" data-dir="ALL">All Observations</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="UNIDIRECTIONAL_OBSERVED">Unidirectional</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="BIDIRECTIONAL_OBSERVED">Bidirectional</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="ASYMMETRIC_OBSERVED">Asymmetric</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="INSUFFICIENT_DATA">Insufficient Data</button>
+          </div>
+        </div>
+
+        <!-- UTIE Overview KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card" style="--kpi-accent: #00e5ff">
+            <div class="kpi-header"><span>TOTAL ANALYZED</span></div>
+            <div id="utie-kpi-total" class="kpi-value">0</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #a855f7">
+            <div class="kpi-header"><span>UNIDIRECTIONAL OBSERVED</span></div>
+            <div id="utie-kpi-unidir" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #10b981">
+            <div class="kpi-header"><span>BIDIRECTIONAL OBSERVED</span></div>
+            <div id="utie-kpi-bidir" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #f59e0b">
+            <div class="kpi-header"><span>ASYMMETRIC OBSERVED</span></div>
+            <div id="utie-kpi-asym" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #8b949e">
+            <div class="kpi-header"><span>INSUFFICIENT DATA</span></div>
+            <div id="utie-kpi-insufficient" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #ef4444">
+            <div class="kpi-header"><span>SUSPICIOUS FLOWS</span></div>
+            <div id="utie-kpi-suspicious" class="kpi-value">0</div>
+          </div>
+        </div>
+
+        <!-- Sensor Visibility and Directionality Bar -->
+        <div class="soc-card" style="margin-top:16px;">
+          <div class="soc-card-header" style="display:flex; justify-content:space-between; align-items:center">
+            <span class="card-title">Observation Symmetry & Sensor Visibility Awareness</span>
+            <div style="display:flex; gap:12px; align-items:center">
+              <span id="utie-dist-text" style="font-family:var(--font-mono); font-size:11px; color:var(--accent-cyan)">
+                UNIDIRECTIONAL: 0% | BIDIRECTIONAL: 0% | ASYMMETRIC: 0% | INSUFFICIENT: 0%
+              </span>
+              <span id="utie-sensor-mode" class="card-badge" style="background:rgba(168,85,247,0.15); color:var(--accent-purple)">
+                SENSOR: PROMISCUOUS_TAP
+              </span>
+            </div>
+          </div>
+          <div class="dir-dist-bar" style="margin-top:8px">
+            <div id="utie-bar-unidir" class="dir-seg-oneway" style="width:25%"></div>
+            <div id="utie-bar-bidir" class="dir-seg-bidi" style="width:25%"></div>
+            <div id="utie-bar-asym" class="dir-seg-asym" style="width:25%"></div>
+            <div id="utie-bar-insuf" style="width:25%; background:#8b949e"></div>
+          </div>
+        </div>
+
+        <!-- UTIE Flow Intelligence Master Table -->
+        <div class="soc-card" style="margin-top:16px;">
+          <div class="soc-card-header" style="display:flex; justify-content:space-between; align-items:center">
+            <span class="card-title">Flow Intelligence Stream</span>
+            <div style="display:flex; gap:10px; align-items:center">
+              <input type="text" id="utie-search-input" placeholder="Search IP, Port, Flow ID..." style="background:rgba(15,23,42,0.8); border:1px solid var(--border-subtle); color:#fff; padding:4px 10px; border-radius:4px; font-size:12px; width:220px;" />
+              <span id="utie-table-count" style="font-size:11px; color:var(--text-muted)">0 flows</span>
+            </div>
+          </div>
+          <div class="table-wrapper" style="max-height:340px;">
+            <table class="soc-table">
+              <thead>
+                <tr>
+                  <th>Flow ID</th>
+                  <th>Source IP:Port</th>
+                  <th>Destination IP:Port</th>
+                  <th>Proto</th>
+                  <th>Directionality</th>
+                  <th>Packets (Fwd/Rev)</th>
+                  <th>Bytes</th>
+                  <th>Duration</th>
+                  <th>Anomaly Status</th>
+                  <th>Threat Class</th>
+                  <th>Risk Score</th>
+                </tr>
+              </thead>
+              <tbody id="utie-flow-tbody">
+                <tr><td colspan="11" style="text-align:center; color:var(--text-muted); padding:20px;">Awaiting UTIE flow intelligence reports...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- UTIE Split Inspector Panel -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:16px;">
+          <!-- Left: Directionality Evidence & Sensor Context -->
+          <div class="soc-card">
+            <div class="soc-card-header">
+              <span class="card-title">Directionality Assessment & Sensor Visibility</span>
+              <span id="utie-detail-badge" class="card-badge" style="background:rgba(0,229,255,0.15); color:var(--accent-cyan)">SELECT A FLOW</span>
+            </div>
+            <div id="utie-detail-evidence-content" style="font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c9d1d9; max-height:280px; overflow-y:auto; white-space:pre-wrap; padding:8px; background:rgba(15,23,42,0.7); border-radius:4px;">
+Select a flow record from the table above to view supporting directionality evidence, sensor visibility evaluation, and packet length statistics.
+            </div>
+          </div>
+
+          <!-- Right: Behavioral Profile & SOC Playbook -->
+          <div class="soc-card">
+            <div class="soc-card-header">
+              <span class="card-title">Traffic Behavior Dynamics & SOC Triage Playbook</span>
+              <span id="utie-detail-risk-badge" class="card-badge" style="background:rgba(16,185,129,0.15); color:var(--accent-green)">INTELLIGENCE READY</span>
+            </div>
+            <div id="utie-detail-behavior-content" style="font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c9d1d9; max-height:280px; overflow-y:auto; white-space:pre-wrap; padding:8px; background:rgba(15,23,42,0.7); border-radius:4px;">
+Select a flow to view packet size dispersion, inter-arrival time burstiness, TCP flag patterns, and actionable incident triage steps.
+            </div>
+          </div>
+        </div>
+
       </div>
 
     </main>
@@ -1163,6 +2818,133 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- =====================================================================
+           VIEW 6.5: UNIDIRECTIONAL TRAFFIC INTELLIGENCE ENGINE (UTIE) - SIH 2026
+           ===================================================================== -->
+      <div id="view-utie-intelligence" class="view-container">
+        <div class="view-header">
+          <div class="view-title-wrap">
+            <h1 class="view-title">Unidirectional Traffic Intelligence Engine (UTIE)</h1>
+            <span class="badge-tag" style="background:rgba(0,229,255,0.15); color:var(--accent-cyan)">SIH 2026 CORE INNOVATION</span>
+          </div>
+          <div class="soc-tabs">
+            <button class="soc-tab-btn active utie-filter-btn" data-dir="ALL">All Observations</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="UNIDIRECTIONAL_OBSERVED">Unidirectional</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="BIDIRECTIONAL_OBSERVED">Bidirectional</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="ASYMMETRIC_OBSERVED">Asymmetric</button>
+            <button class="soc-tab-btn utie-filter-btn" data-dir="INSUFFICIENT_DATA">Insufficient Data</button>
+          </div>
+        </div>
+
+        <!-- UTIE Overview KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card" style="--kpi-accent: #00e5ff">
+            <div class="kpi-header"><span>TOTAL ANALYZED</span></div>
+            <div id="utie-kpi-total" class="kpi-value">0</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #a855f7">
+            <div class="kpi-header"><span>UNIDIRECTIONAL OBSERVED</span></div>
+            <div id="utie-kpi-unidir" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #10b981">
+            <div class="kpi-header"><span>BIDIRECTIONAL OBSERVED</span></div>
+            <div id="utie-kpi-bidir" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #f59e0b">
+            <div class="kpi-header"><span>ASYMMETRIC OBSERVED</span></div>
+            <div id="utie-kpi-asym" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #8b949e">
+            <div class="kpi-header"><span>INSUFFICIENT DATA</span></div>
+            <div id="utie-kpi-insufficient" class="kpi-value">0 (0.0%)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-accent: #ef4444">
+            <div class="kpi-header"><span>SUSPICIOUS FLOWS</span></div>
+            <div id="utie-kpi-suspicious" class="kpi-value">0</div>
+          </div>
+        </div>
+
+        <!-- Sensor Visibility and Directionality Bar -->
+        <div class="soc-card" style="margin-top:16px;">
+          <div class="soc-card-header" style="display:flex; justify-content:space-between; align-items:center">
+            <span class="card-title">Observation Symmetry & Sensor Visibility Awareness</span>
+            <div style="display:flex; gap:12px; align-items:center">
+              <span id="utie-dist-text" style="font-family:var(--font-mono); font-size:11px; color:var(--accent-cyan)">
+                UNIDIRECTIONAL: 0% | BIDIRECTIONAL: 0% | ASYMMETRIC: 0% | INSUFFICIENT: 0%
+              </span>
+              <span id="utie-sensor-mode" class="card-badge" style="background:rgba(168,85,247,0.15); color:var(--accent-purple)">
+                SENSOR: PROMISCUOUS_TAP
+              </span>
+            </div>
+          </div>
+          <div class="dir-dist-bar" style="margin-top:8px">
+            <div id="utie-bar-unidir" class="dir-seg-oneway" style="width:25%"></div>
+            <div id="utie-bar-bidir" class="dir-seg-bidi" style="width:25%"></div>
+            <div id="utie-bar-asym" class="dir-seg-asym" style="width:25%"></div>
+            <div id="utie-bar-insuf" style="width:25%; background:#8b949e"></div>
+          </div>
+        </div>
+
+        <!-- UTIE Flow Intelligence Master Table -->
+        <div class="soc-card" style="margin-top:16px;">
+          <div class="soc-card-header" style="display:flex; justify-content:space-between; align-items:center">
+            <span class="card-title">Flow Intelligence Stream</span>
+            <div style="display:flex; gap:10px; align-items:center">
+              <input type="text" id="utie-search-input" placeholder="Search IP, Port, Flow ID..." style="background:rgba(15,23,42,0.8); border:1px solid var(--border-subtle); color:#fff; padding:4px 10px; border-radius:4px; font-size:12px; width:220px;" />
+              <span id="utie-table-count" style="font-size:11px; color:var(--text-muted)">0 flows</span>
+            </div>
+          </div>
+          <div class="table-wrapper" style="max-height:340px;">
+            <table class="soc-table">
+              <thead>
+                <tr>
+                  <th>Flow ID</th>
+                  <th>Source IP:Port</th>
+                  <th>Destination IP:Port</th>
+                  <th>Proto</th>
+                  <th>Directionality</th>
+                  <th>Packets (Fwd/Rev)</th>
+                  <th>Bytes</th>
+                  <th>Duration</th>
+                  <th>Anomaly Status</th>
+                  <th>Threat Class</th>
+                  <th>Risk Score</th>
+                </tr>
+              </thead>
+              <tbody id="utie-flow-tbody">
+                <tr><td colspan="11" style="text-align:center; color:var(--text-muted); padding:20px;">Awaiting UTIE flow intelligence reports...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- UTIE Split Inspector Panel -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:16px;">
+          <!-- Left: Directionality Evidence & Sensor Context -->
+          <div class="soc-card">
+            <div class="soc-card-header">
+              <span class="card-title">Directionality Assessment & Sensor Visibility</span>
+              <span id="utie-detail-badge" class="card-badge" style="background:rgba(0,229,255,0.15); color:var(--accent-cyan)">SELECT A FLOW</span>
+            </div>
+            <div id="utie-detail-evidence-content" style="font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c9d1d9; max-height:280px; overflow-y:auto; white-space:pre-wrap; padding:8px; background:rgba(15,23,42,0.7); border-radius:4px;">
+Select a flow record from the table above to view supporting directionality evidence, sensor visibility evaluation, and packet length statistics.
+            </div>
+          </div>
+
+          <!-- Right: Behavioral Profile & SOC Playbook -->
+          <div class="soc-card">
+            <div class="soc-card-header">
+              <span class="card-title">Traffic Behavior Dynamics & SOC Triage Playbook</span>
+              <span id="utie-detail-risk-badge" class="card-badge" style="background:rgba(16,185,129,0.15); color:var(--accent-green)">INTELLIGENCE READY</span>
+            </div>
+            <div id="utie-detail-behavior-content" style="font-family:var(--font-mono); font-size:11px; line-height:1.6; color:#c9d1d9; max-height:280px; overflow-y:auto; white-space:pre-wrap; padding:8px; background:rgba(15,23,42,0.7); border-radius:4px;">
+Select a flow to view packet size dispersion, inter-arrival time burstiness, TCP flag patterns, and actionable incident triage steps.
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <div class="modal-footer">

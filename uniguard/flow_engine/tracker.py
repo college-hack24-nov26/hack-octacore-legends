@@ -171,6 +171,7 @@ class FlowTracker:
 
         # Project dominant unidirectional flow (Task 11)
         uni_flow = biflow.get_unidirectional_projection(direction="forward")
+        uni_flow._parent_biflow = biflow
         return uni_flow
 
     def evict_expired(self, current_time: float, force_fraction: float = 0.0) -> List[UnidirectionalFlow]:

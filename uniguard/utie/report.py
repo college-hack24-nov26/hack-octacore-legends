@@ -96,3 +96,4 @@ class UTIEIntelligenceReport:
             return ("#d29922", "NEEDS ATTENTION", "badge-medium")
         else:
             return ("#3fb950", "NORMAL", "badge-normal")
+

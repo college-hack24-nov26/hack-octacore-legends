@@ -842,7 +842,203 @@ document.addEventListener('DOMContentLoaded', () => {
       fetchModelStatus();
     }
 
+    // 9. Periodically Poll UTIE Intelligence Engine (SIH 2026)
+    fetchUtieData();
+
   }, 1000);
+
+  // =========================================================================
+  // UTIE INTELLIGENCE ENGINE (SIH 2026 CORE INNOVATION)
+  // =========================================================================
+  let utieActiveFilter = 'ALL';
+  let utieSearchQuery = '';
+  let utieCachedFlows = [];
+
+  function fetchUtieData() {
+    fetch('/api/utie/summary')
+      .then(res => res.json())
+      .then(summary => {
+        const total = summary.total_flows_analyzed || 0;
+        const elTotal = document.getElementById('utie-kpi-total');
+        if (elTotal) elTotal.textContent = total.toLocaleString();
+
+        const elUnidir = document.getElementById('utie-kpi-unidir');
+        if (elUnidir) elUnidir.textContent = `${(summary.unidirectional_observations || 0).toLocaleString()} (${summary.unidirectional_pct || 0}%)`;
+
+        const elBidir = document.getElementById('utie-kpi-bidir');
+        if (elBidir) elBidir.textContent = `${(summary.bidirectional_observations || 0).toLocaleString()} (${summary.bidirectional_pct || 0}%)`;
+
+        const elAsym = document.getElementById('utie-kpi-asym');
+        if (elAsym) elAsym.textContent = `${(summary.asymmetric_observations || 0).toLocaleString()} (${summary.asymmetric_pct || 0}%)`;
+
+        const elInsuf = document.getElementById('utie-kpi-insufficient');
+        if (elInsuf) elInsuf.textContent = `${(summary.insufficient_data_flows || 0).toLocaleString()} (${summary.insufficient_data_pct || 0}%)`;
+
+        const elSusp = document.getElementById('utie-kpi-suspicious');
+        if (elSusp) elSusp.textContent = (summary.suspicious_flows || 0).toLocaleString();
+
+        const distText = document.getElementById('utie-dist-text');
+        if (distText) {
+          distText.textContent = `UNIDIRECTIONAL: ${summary.unidirectional_pct || 0}% | BIDIRECTIONAL: ${summary.bidirectional_pct || 0}% | ASYMMETRIC: ${summary.asymmetric_pct || 0}% | INSUFFICIENT: ${summary.insufficient_data_pct || 0}%`;
+        }
+
+        const barU = document.getElementById('utie-bar-unidir');
+        if (barU) barU.style.width = `${summary.unidirectional_pct || 0}%`;
+        const barB = document.getElementById('utie-bar-bidir');
+        if (barB) barB.style.width = `${summary.bidirectional_pct || 0}%`;
+        const barA = document.getElementById('utie-bar-asym');
+        if (barA) barA.style.width = `${summary.asymmetric_pct || 0}%`;
+        const barI = document.getElementById('utie-bar-insuf');
+        if (barI) barI.style.width = `${summary.insufficient_data_pct || 0}%`;
+
+        const sensorMode = document.getElementById('utie-sensor-mode');
+        if (sensorMode && summary.sensor_observation_point) {
+          sensorMode.textContent = `SENSOR: ${summary.sensor_observation_point}${summary.sensor_is_diode ? ' (DIODE)' : ''}`;
+        }
+      })
+      .catch(() => {});
+
+    const queryUrl = `/api/utie/flows?limit=60&directionality=${encodeURIComponent(utieActiveFilter)}&query=${encodeURIComponent(utieSearchQuery)}`;
+    fetch(queryUrl)
+      .then(res => res.json())
+      .then(flows => {
+        utieCachedFlows = flows;
+        renderUtieFlowsTable(flows);
+      })
+      .catch(() => {});
+  }
+
+  function renderUtieFlowsTable(flows) {
+    const tbody = document.getElementById('utie-flow-tbody');
+    const countSpan = document.getElementById('utie-table-count');
+    if (!tbody) return;
+
+    if (!flows || flows.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; color:var(--text-muted); padding:20px;">No matching UTIE intelligence records found.</td></tr>';
+      if (countSpan) countSpan.textContent = '0 flows';
+      return;
+    }
+
+    if (countSpan) countSpan.textContent = `${flows.length} flows`;
+    tbody.innerHTML = flows.map(f => {
+      const risk = f.risk_score != null ? f.risk_score : 0;
+      let badgeColor = '#3fb950';
+      if (f.directionality === 'INSUFFICIENT_DATA') {
+        badgeColor = '#8b949e';
+      } else if (risk >= 80 || f.severity === 'CRITICAL') {
+        badgeColor = '#ef4444';
+      } else if (risk >= 60 || f.severity === 'HIGH') {
+        badgeColor = '#f97316';
+      } else if (risk >= 35 || f.anomaly_status === 'ANOMALOUS') {
+        badgeColor = '#f59e0b';
+      }
+
+      const fwdRevPkts = `${f.packet_count} / ${f.reverse_packet_count != null ? f.reverse_packet_count : '--'}`;
+      const fwdRevBytes = `${f.byte_count} B`;
+
+      return `
+        <tr style="cursor:pointer;" onclick="window.inspectUtieFlow('${f.flow_id}')">
+          <td style="font-family:var(--font-mono); font-size:11px; color:var(--accent-cyan)">${f.flow_id}</td>
+          <td style="font-family:var(--font-mono); font-size:11px;">${f.src_ip}:${f.src_port}</td>
+          <td style="font-family:var(--font-mono); font-size:11px;">${f.dst_ip}:${f.dst_port}</td>
+          <td><span style="background:rgba(255,255,255,0.06); padding:2px 6px; border-radius:3px; font-size:11px;">${f.proto_name || f.proto}</span></td>
+          <td style="color:${badgeColor}; font-weight:600; font-size:11px;">${f.directionality}</td>
+          <td style="font-family:var(--font-mono); font-size:11px;">${fwdRevPkts}</td>
+          <td style="font-family:var(--font-mono); font-size:11px;">${fwdRevBytes}</td>
+          <td style="font-family:var(--font-mono); font-size:11px;">${(f.duration || 0).toFixed(3)}s</td>
+          <td><span style="color:${f.anomaly_status === 'ANOMALOUS' ? '#f59e0b' : '#3fb950'}; font-weight:600; font-size:11px;">${f.anomaly_status}</span></td>
+          <td style="color:${f.threat_category && f.threat_category !== 'BENIGN' ? '#ef4444' : '#3fb950'}; font-weight:600; font-size:11px;">${f.threat_category || 'BENIGN'}</td>
+          <td style="font-family:var(--font-mono); font-weight:700; color:${badgeColor}; font-size:11px;">${risk > 0 ? risk : '--'}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  window.inspectUtieFlow = function(flowId) {
+    const flow = utieCachedFlows.find(f => f.flow_id === flowId);
+    if (!flow) return;
+
+    const badge = document.getElementById('utie-detail-badge');
+    const riskBadge = document.getElementById('utie-detail-risk-badge');
+    const evContent = document.getElementById('utie-detail-evidence-content');
+    const behContent = document.getElementById('utie-detail-behavior-content');
+
+    if (badge) badge.textContent = `${flow.directionality} (${((flow.directionality_confidence || 0) * 100).toFixed(0)}% EVIDENCE CONF)`;
+    if (riskBadge) riskBadge.textContent = `RISK: ${flow.risk_score || 0}/100 | ${flow.threat_category || 'BENIGN'}`;
+
+    if (evContent) {
+      let bullets = '';
+      if (Array.isArray(flow.directionality_evidence)) {
+        bullets = flow.directionality_evidence.map(b => `  * ${b}`).join('\n');
+      }
+      evContent.textContent =
+`======================================================================
+ UTIE DIRECTIONALITY & SENSOR VISIBILITY ASSESSMENT
+======================================================================
+Flow ID: ${flow.flow_id}
+5-Tuple: ${flow.src_ip}:${flow.src_port} -> ${flow.dst_ip}:${flow.dst_port} [Proto: ${flow.proto_name || flow.proto}]
+Duration: ${(flow.duration || 0).toFixed(4)}s  |  Forward Packets: ${flow.packet_count} (${flow.byte_count} B)
+Evidence Confidence: ${((flow.directionality_confidence || 0) * 100).toFixed(1)}% (Separated from threat confidence)
+
+[DIRECTIONALITY EVIDENCE]:
+${bullets || '  * Pure forward packet stream evaluated.'}
+
+[SENSOR VISIBILITY AWARENESS]:
+  Visibility Type: ${flow.sensor_visibility_type || 'UNKNOWN'}
+  Reverse Missing: ${flow.is_reverse_missing ? 'YES (Unobserved on Wire)' : 'NO (Return Traffic Captured)'}
+  Observation Point: ${flow.sensor_visibility_type || 'PROMISCUOUS_TAP'}`;
+    }
+
+    if (behContent) {
+      const beh = flow.traffic_behavior_summary || {};
+      const stats = beh.pkt_len_stats || {};
+      const timing = beh.timing_dynamics || {};
+      const flags = beh.flag_details || {};
+      let steps = '';
+      if (Array.isArray(flow.suggested_investigation_steps)) {
+        steps = flow.suggested_investigation_steps.join('\n');
+      }
+
+      behContent.textContent =
+`======================================================================
+ TRAFFIC BEHAVIOR PROFILE & DYNAMICS
+======================================================================
+Packet Length Distribution:
+  Min: ${stats.min || 0} B | Max: ${stats.max || 0} B | Mean: ${stats.mean || 0} B | StdDev: ${stats.std || 0}
+  Size Homogeneity: ${((stats.homogeneity || 0) * 100).toFixed(1)}% | Shannon Entropy: ${beh.entropy_pkt_len || 0}
+
+Timing Dynamics & Rates:
+  Packet Rate: ${(flow.pkt_rate || 0).toFixed(1)} pps | Byte Rate: ${(flow.byte_rate || 0).toFixed(1)} Bps
+  IAT Mean: ${(timing.iat_mean || 0).toFixed(4)}s | Burstiness Index: ${timing.burstiness_index || 0}
+  Periodic C2 Beaconing: ${timing.is_periodic_beacon ? 'YES (Strict Interval)' : 'NO (Normal Variance)'}
+
+TCP Flag Signatures:
+  Pattern: ${beh.flag_pattern || 'STANDARD'} (SYN=${flags.SYN || 0}, ACK=${flags.ACK || 0}, FIN=${flags.FIN || 0}, RST=${flags.RST || 0})
+
+----------------------------------------------------------------------
+ SUGGESTED SOC INVESTIGATION STEPS
+----------------------------------------------------------------------
+${steps || '1. Telemetry logged to database for baseline profiling.'}`;
+    }
+  };
+
+  // Filter Buttons Handler
+  document.querySelectorAll('.utie-filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.utie-filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      utieActiveFilter = btn.getAttribute('data-dir') || 'ALL';
+      fetchUtieData();
+    });
+  });
+
+  const searchInput = document.getElementById('utie-search-input');
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      utieSearchQuery = e.target.value.trim();
+      fetchUtieData();
+    });
+  }
 
   // Initial Load of Database History
   loadHistoricalEvents();

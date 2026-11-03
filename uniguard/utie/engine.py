@@ -150,8 +150,6 @@ class UnidirectionalTrafficIntelligenceEngine:
             ml_conf: Optional[float] = None
             risk_val: Optional[int] = None
             severity_str: Optional[str] = None
-            anomaly_stat = "ANOMALOUS" if behavior.is_suspicious_behavior or behavior.anomaly_score > 0.45 else "NORMAL"
-
             if security_event is not None:
                 threat_cat = security_event.threat_type
                 ml_conf = security_event.confidence_pct / 100.0 if security_event.confidence_pct is not None else 0.5
@@ -167,12 +165,24 @@ class UnidirectionalTrafficIntelligenceEngine:
                 except Exception:
                     pass
 
-            # Update suspicious flow counter
-            is_suspicious_flow = (
-                (risk_val is not None and risk_val >= 40)
-                or (threat_cat is not None and threat_cat != "BENIGN")
-                or behavior.is_suspicious_behavior
+            # Normal balanced bidirectional traffic is non-malicious (Rule: ordinary downloads/streams are not threats)
+            is_confirmed_benign_bidi = (
+                cls_name == DirectionalityClass.BIDIRECTIONAL_OBSERVED.value
+                and (threat_cat is None or threat_cat == "BENIGN")
+                and (risk_val is None or risk_val < 35)
             )
+
+            if is_confirmed_benign_bidi:
+                anomaly_stat = "NORMAL"
+                is_suspicious_flow = False
+            else:
+                anomaly_stat = "ANOMALOUS" if behavior.is_suspicious_behavior or behavior.anomaly_score > 0.45 else "NORMAL"
+                is_suspicious_flow = (
+                    (risk_val is not None and risk_val >= 40)
+                    or (threat_cat is not None and threat_cat != "BENIGN")
+                    or behavior.is_suspicious_behavior
+                )
+
             if is_suspicious_flow:
                 self.suspicious_count += 1
 

@@ -214,7 +214,7 @@ class TrafficBehaviorAnalyzer:
             findings.append(f"High burstiness coefficient ({burstiness:.2f}). Traffic arrives in intermittent spikes rather than steady streaming.")
 
         # 5. Shannon Entropy
-        entropy = flow.entropy_pkt_len
+        entropy = flow.calculate_entropy() if hasattr(flow, "calculate_entropy") else 0.0
         if entropy < 0.2 and pkt_cnt >= 5:
             tags.append("ZERO-ENTROPY-SIZES")
             findings.append("Near-zero packet size entropy. Flow consists of strictly uniform packet buffers.")

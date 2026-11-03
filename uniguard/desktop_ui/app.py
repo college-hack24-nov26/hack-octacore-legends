@@ -68,6 +68,12 @@ from uniguard.detection.engine import DetectionEngine, SecurityEvent
 from uniguard.database.storage import SecurityDatabase
 from uniguard.directionality.explainer import DirectionalityExplainer
 from uniguard.desktop_ui.server import start_soc_server, SocStateBridge
+from uniguard.utie import (
+    UnidirectionalTrafficIntelligenceEngine,
+    SensorVisibilityContext,
+    ObservationPoint,
+    UTIEIntelligenceReport,
+)
 
 try:
     from PySide6.QtWebEngineWidgets import QWebEngineView
@@ -272,6 +278,7 @@ class MonitoringWorker(QThread):
     """Decoupled background worker thread processing PCAP or live network interface traffic."""
 
     event_generated = Signal(object)
+    utie_generated = Signal(object)
     stats_updated = Signal(dict)
     finished_processing = Signal()
     error_occurred = Signal(str)
@@ -315,6 +322,13 @@ class MonitoringWorker(QThread):
             risk_scorer=RiskScorer(),
         )
 
+        # UTIE Engine (SIH 2026 Core Feature)
+        bridge = SocStateBridge.get()
+        utie_engine = UnidirectionalTrafficIntelligenceEngine(
+            detection_engine=detection_engine,
+            sensor_context=bridge.utie_engine.sensor_context,
+        )
+
         tracker = FlowTracker(
             idle_timeout=self.idle_timeout,
             active_timeout=self.active_timeout,
@@ -345,8 +359,14 @@ class MonitoringWorker(QThread):
                         # Skip heavy explainability on routine elephant active-timeout slices
                         skip_shap = getattr(flow, "is_elephant", False) and flow.closure_reason == "ACTIVE_TIMEOUT"
                         event = detection_engine.analyze_flow(flow, skip_shap=skip_shap)
+                        
+                        # Generate UTIE Intelligence Report
+                        biflow = getattr(flow, "_parent_biflow", None)
+                        utie_report = utie_engine.analyze_flow(flow, biflow=biflow, security_event=event)
+
                         if self.is_running:
                             self.event_generated.emit(event)
+                            self.utie_generated.emit(utie_report)
                     except Exception:
                         pass
                     finally:
@@ -619,6 +639,18 @@ class UniGuardDesktopApp(QMainWindow):
             "ANOMALOUS": 0,
         }
 
+        # UTIE Intelligence tracking (SIH 2026 Core Innovation)
+        self.all_utie_reports: List[UTIEIntelligenceReport] = []
+        self.filtered_utie_reports: List[UTIEIntelligenceReport] = []
+        self.utie_counts: Dict[str, int] = {
+            "UNIDIRECTIONAL_OBSERVED": 0,
+            "BIDIRECTIONAL_OBSERVED": 0,
+            "ASYMMETRIC_OBSERVED": 0,
+            "INSUFFICIENT_DATA": 0,
+            "UNKNOWN": 0,
+        }
+        self.utie_suspicious_count: int = 0
+
         self.init_ui()
         self.setStyleSheet(DARK_STYLESHEET)
         self.load_historical_events()
@@ -727,6 +759,7 @@ class UniGuardDesktopApp(QMainWindow):
         self.tab_model_status = QWidget()
         self.tab_event_history = QWidget()
         self.tab_settings = QWidget()
+        self.tab_utie = QWidget()
 
         self.setup_overview_tab()
         self.setup_live_monitor_tab()
@@ -736,6 +769,7 @@ class UniGuardDesktopApp(QMainWindow):
         self.setup_model_status_tab()
         self.setup_event_history_tab()
         self.setup_settings_tab()
+        self.setup_utie_tab()
 
         self.tabs.addTab(self.tab_overview, "1. SECURITY OVERVIEW")
         self.tabs.addTab(self.tab_live_monitor, "2. LIVE MONITORING")
@@ -745,6 +779,7 @@ class UniGuardDesktopApp(QMainWindow):
         self.tabs.addTab(self.tab_model_status, "6. MODEL / AI STATUS")
         self.tabs.addTab(self.tab_event_history, "7. EVENT HISTORY")
         self.tabs.addTab(self.tab_settings, "8. SETTINGS")
+        self.tabs.addTab(self.tab_utie, "9. UNIDIRECTIONAL INTELLIGENCE")
 
         if WEBENGINE_AVAILABLE:
             self.tabs.setCurrentIndex(0)
@@ -1650,6 +1685,416 @@ class UniGuardDesktopApp(QMainWindow):
         layout.addWidget(self.lbl_settings_feedback)
         layout.addStretch()
 
+    # =========================================================================
+    # MODULE 9: UNIDIRECTIONAL TRAFFIC INTELLIGENCE ENGINE (UTIE) - SIH 2026
+    # =========================================================================
+    def setup_utie_tab(self) -> None:
+        layout = QVBoxLayout(self.tab_utie)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(10)
+
+        # A. UTIE Overview KPI Cards
+        kpi_box = QGroupBox("UNIDIRECTIONAL TRAFFIC INTELLIGENCE ENGINE (UTIE) - SIH 2026")
+        kpi_layout = QVBoxLayout(kpi_box)
+
+        card_row = QHBoxLayout()
+        self.card_utie_total = self.create_kpi_card("TOTAL ANALYZED", "0", "#00e5ff", "Total flows evaluated by UTIE")
+        self.card_utie_unidir = self.create_kpi_card("UNIDIRECTIONAL OBSERVED", "0", "#a855f7", "Pure one-way observed streams (0.0%)")
+        self.card_utie_bidir = self.create_kpi_card("BIDIRECTIONAL OBSERVED", "0", "#10b981", "Bilateral conversational sessions (0.0%)")
+        self.card_utie_asym = self.create_kpi_card("ASYMMETRIC OBSERVED", "0", "#f59e0b", "Directional asymmetry streams (0.0%)")
+        self.card_utie_insufficient = self.create_kpi_card("INSUFFICIENT DATA", "0", "#8b949e", "Short flows (<3 pkts / <0.05s) (0.0%)")
+        self.card_utie_suspicious = self.create_kpi_card("SUSPICIOUS FLOWS", "0", "#ef4444", "Anomalous, high-risk, or threat flows")
+
+        card_row.addWidget(self.card_utie_total)
+        card_row.addWidget(self.card_utie_unidir)
+        card_row.addWidget(self.card_utie_bidir)
+        card_row.addWidget(self.card_utie_asym)
+        card_row.addWidget(self.card_utie_insufficient)
+        card_row.addWidget(self.card_utie_suspicious)
+        kpi_layout.addLayout(card_row)
+
+        # Distribution & Sensor Visibility Controls Bar
+        vis_row = QHBoxLayout()
+        self.lbl_utie_dist = QLabel("DIRECTIONALITY DISTRIBUTION:  UNIDIRECTIONAL: 0.0%  |  BIDIRECTIONAL: 0.0%  |  ASYMMETRIC: 0.0%  |  INSUFFICIENT: 0.0%")
+        self.lbl_utie_dist.setStyleSheet("color: #00e5ff; font-weight: bold; font-size: 8.5pt;")
+        vis_row.addWidget(self.lbl_utie_dist, stretch=2)
+
+        # Sensor Topology Selector
+        vis_row.addWidget(QLabel("Sensor Topology:"), alignment=Qt.AlignRight)
+        self.combo_sensor_point = QComboBox()
+        self.combo_sensor_point.addItems([
+            "PROMISCUOUS_TAP",
+            "DATA_DIODE_EGRESS",
+            "DATA_DIODE_INGRESS",
+            "ASYMMETRIC_SPAN",
+            "GATEWAY_INLINE",
+            "UNKNOWN",
+        ])
+        vis_row.addWidget(self.combo_sensor_point)
+
+        self.chk_sensor_diode = QCheckBox("Hardware Diode Enforced")
+        self.chk_sensor_diode.setStyleSheet("color: #a855f7; font-weight: 600;")
+        vis_row.addWidget(self.chk_sensor_diode)
+
+        self.btn_apply_sensor = QPushButton("Update Sensor Mode")
+        self.btn_apply_sensor.clicked.connect(self.apply_sensor_topology)
+        vis_row.addWidget(self.btn_apply_sensor)
+
+        kpi_layout.addLayout(vis_row)
+        layout.addWidget(kpi_box)
+
+        # B. Filter Bar
+        filter_bar = QHBoxLayout()
+        self.txt_utie_search = QLineEdit()
+        self.txt_utie_search.setPlaceholderText("Search by IP, Port, or Flow ID...")
+        self.txt_utie_search.textChanged.connect(self.filter_utie_table)
+        filter_bar.addWidget(self.txt_utie_search, stretch=2)
+
+        self.combo_filter_utie_dir = QComboBox()
+        self.combo_filter_utie_dir.addItems([
+            "ALL DIRECTIONALITIES",
+            "UNIDIRECTIONAL_OBSERVED",
+            "BIDIRECTIONAL_OBSERVED",
+            "ASYMMETRIC_OBSERVED",
+            "INSUFFICIENT_DATA",
+            "UNKNOWN",
+        ])
+        self.combo_filter_utie_dir.currentIndexChanged.connect(self.filter_utie_table)
+        filter_bar.addWidget(self.combo_filter_utie_dir)
+
+        self.combo_filter_utie_threat = QComboBox()
+        self.combo_filter_utie_threat.addItems([
+            "ALL THREAT CLASSES",
+            "BENIGN",
+            "PORT_SCAN",
+            "SYN_FLOOD",
+            "UDP_FLOOD",
+            "DATA_EXFILTRATION",
+            "SLOWLORIS",
+            "ANOMALOUS",
+        ])
+        self.combo_filter_utie_threat.currentIndexChanged.connect(self.filter_utie_table)
+        filter_bar.addWidget(self.combo_filter_utie_threat)
+
+        self.btn_reset_utie = QPushButton("Reset Filters")
+        self.btn_reset_utie.clicked.connect(self.reset_utie_filters)
+        filter_bar.addWidget(self.btn_reset_utie)
+
+        self.lbl_utie_table_count = QLabel("0 flows displayed")
+        self.lbl_utie_table_count.setStyleSheet("color: #6e7681; font-weight: bold;")
+        filter_bar.addWidget(self.lbl_utie_table_count)
+        layout.addLayout(filter_bar)
+
+        # C. Splitter: Top = Flow Intelligence Table, Bottom = Flow Details Inspector
+        splitter = QSplitter(Qt.Vertical)
+
+        # Master UTIE Table
+        self.table_utie = QTableWidget(0, 11)
+        self.table_utie.setHorizontalHeaderLabels([
+            "Flow ID",
+            "Source IP:Port",
+            "Destination IP:Port",
+            "Protocol",
+            "Directionality",
+            "Packets (Fwd/Rev)",
+            "Bytes (Fwd/Rev)",
+            "Duration",
+            "Anomaly Status",
+            "Threat Category",
+            "Risk Score",
+        ])
+        self.table_utie.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table_utie.setSelectionBehavior(QTableWidget.SelectRows)
+        self.table_utie.setSelectionMode(QTableWidget.SingleSelection)
+        self.table_utie.cellClicked.connect(self.on_utie_table_row_clicked)
+        splitter.addWidget(self.table_utie)
+
+        # Lower Detail Inspector
+        detail_container = QWidget()
+        detail_layout = QHBoxLayout(detail_container)
+        detail_layout.setContentsMargins(0, 5, 0, 0)
+        detail_layout.setSpacing(10)
+
+        # Left Detail Box: Directionality & Sensor Visibility Assessment
+        box_left = QGroupBox("DIRECTIONALITY ASSESSMENT & SENSOR VISIBILITY")
+        layout_left = QVBoxLayout(box_left)
+        layout_left.setSpacing(6)
+
+        header_score_row = QHBoxLayout()
+        self.badge_utie_class = QLabel("DIRECTIONALITY: SELECT A FLOW")
+        self.badge_utie_class.setStyleSheet("background-color: #161d2b; color: #8b949e; border: 1px solid #283347; padding: 4px 10px; border-radius: 4px; font-weight: bold;")
+        header_score_row.addWidget(self.badge_utie_class)
+
+        header_score_row.addWidget(QLabel("Evidence Confidence:"), alignment=Qt.AlignRight)
+        self.progress_utie_conf = QProgressBar()
+        self.progress_utie_conf.setRange(0, 100)
+        self.progress_utie_conf.setValue(0)
+        self.progress_utie_conf.setTextVisible(True)
+        self.progress_utie_conf.setFormat("%v% (Evidence Score)")
+        self.progress_utie_conf.setStyleSheet("QProgressBar { background-color: #161d2b; border: 1px solid #283347; border-radius: 4px; text-align: center; color: #f0f6fc; } QProgressBar::chunk { background-color: #00e5ff; }")
+        header_score_row.addWidget(self.progress_utie_conf)
+        layout_left.addLayout(header_score_row)
+
+        self.txt_utie_evidence = QTextEdit()
+        self.txt_utie_evidence.setReadOnly(True)
+        self.txt_utie_evidence.setPlaceholderText("Select any flow in the table above to view supporting directionality evidence and sensor topology rationale...")
+        layout_left.addWidget(self.txt_utie_evidence, stretch=1)
+        detail_layout.addWidget(box_left, stretch=5)
+
+        # Right Detail Box: Behavioral Dynamics & SOC Playbook
+        box_right = QGroupBox("TRAFFIC BEHAVIOR DYNAMICS & SUGGESTED SOC INVESTIGATION")
+        layout_right = QVBoxLayout(box_right)
+        layout_right.setSpacing(6)
+
+        self.txt_utie_behavior = QTextEdit()
+        self.txt_utie_behavior.setReadOnly(True)
+        self.txt_utie_behavior.setPlaceholderText("Select a flow to inspect packet length distributions, inter-arrival time burstiness, TCP flag patterns, and suggested triage steps...")
+        layout_right.addWidget(self.txt_utie_behavior, stretch=1)
+        detail_layout.addWidget(box_right, stretch=5)
+
+        splitter.addWidget(detail_container)
+        splitter.setStretchFactor(0, 5)
+        splitter.setStretchFactor(1, 5)
+        layout.addWidget(splitter, stretch=1)
+
+    def apply_sensor_topology(self) -> None:
+        """Applies operator configured observation point topology to UTIE."""
+        pt_name = self.combo_sensor_point.currentText()
+        is_diode = self.chk_sensor_diode.isChecked()
+        try:
+            obs_pt = ObservationPoint[pt_name]
+        except KeyError:
+            obs_pt = ObservationPoint.PROMISCUOUS_TAP
+
+        ctx = SensorVisibilityContext(
+            observation_point=obs_pt,
+            is_diode_enforced=is_diode,
+        )
+        bridge = SocStateBridge.get()
+        bridge.utie_engine.set_sensor_context(ctx)
+        self.add_log(f"UTIE Sensor Visibility Topology updated: {obs_pt.value} (Diode Enforced={is_diode})", level="INFO")
+
+    def on_utie_report_received(self, report: UTIEIntelligenceReport) -> None:
+        """Slot invoked on Qt GUI thread when a new UTIE intelligence report is generated."""
+        self.all_utie_reports.insert(0, report)
+        if len(self.all_utie_reports) > 1000:
+            self.all_utie_reports.pop()
+
+        # Update persistence & Web SOC bridge
+        try:
+            SecurityDatabase().insert_utie_report(report)
+        except Exception:
+            pass
+        try:
+            SocStateBridge.get().add_utie_report(report)
+        except Exception:
+            pass
+
+        # Update UTIE metrics
+        cls_name = report.directionality
+        self.utie_counts[cls_name] = self.utie_counts.get(cls_name, 0) + 1
+        is_suspicious = (
+            (report.risk_score is not None and report.risk_score >= 40)
+            or (report.ml_threat_category is not None and report.ml_threat_category != "BENIGN")
+            or report.anomaly_status == "ANOMALOUS"
+        )
+        if is_suspicious:
+            self.utie_suspicious_count += 1
+
+        total = max(1, len(self.all_utie_reports))
+        unidir_cnt = self.utie_counts.get("UNIDIRECTIONAL_OBSERVED", 0)
+        bidir_cnt = self.utie_counts.get("BIDIRECTIONAL_OBSERVED", 0)
+        asym_cnt = self.utie_counts.get("ASYMMETRIC_OBSERVED", 0)
+        insuf_cnt = self.utie_counts.get("INSUFFICIENT_DATA", 0)
+
+        unidir_pct = (unidir_cnt / total) * 100.0
+        bidir_pct = (bidir_cnt / total) * 100.0
+        asym_pct = (asym_cnt / total) * 100.0
+        insuf_pct = (insuf_cnt / total) * 100.0
+
+        self.card_utie_total.findChild(QLabel, "kpi-value").setText(str(total))
+        self.card_utie_unidir.findChild(QLabel, "kpi-value").setText(f"{unidir_cnt} ({unidir_pct:.1f}%)")
+        self.card_utie_bidir.findChild(QLabel, "kpi-value").setText(f"{bidir_cnt} ({bidir_pct:.1f}%)")
+        self.card_utie_asym.findChild(QLabel, "kpi-value").setText(f"{asym_cnt} ({asym_pct:.1f}%)")
+        self.card_utie_insufficient.findChild(QLabel, "kpi-value").setText(f"{insuf_cnt} ({insuf_pct:.1f}%)")
+        self.card_utie_suspicious.findChild(QLabel, "kpi-value").setText(str(self.utie_suspicious_count))
+
+        self.lbl_utie_dist.setText(
+            f"DIRECTIONALITY DISTRIBUTION:  UNIDIRECTIONAL: {unidir_pct:.1f}%  |  BIDIRECTIONAL: {bidir_pct:.1f}%  |  ASYMMETRIC: {asym_pct:.1f}%  |  INSUFFICIENT: {insuf_pct:.1f}%"
+        )
+
+        # Add to table if matches active filters
+        self._add_utie_report_row(report, prepend=True)
+        self.lbl_utie_table_count.setText(f"{self.table_utie.rowCount()} flows displayed")
+
+    def _add_utie_report_row(self, report: UTIEIntelligenceReport, prepend: bool = True) -> None:
+        """Inserts a single row into the UTIE Flow Intelligence Table."""
+        # Check active filters
+        search = self.txt_utie_search.text().lower().strip()
+        dir_filter = self.combo_filter_utie_dir.currentText()
+        threat_filter = self.combo_filter_utie_threat.currentText()
+
+        if search:
+            match = (
+                search in report.flow_id.lower()
+                or search in report.src_ip.lower()
+                or search in report.dst_ip.lower()
+                or search in str(report.src_port)
+                or search in str(report.dst_port)
+            )
+            if not match:
+                return
+
+        if dir_filter != "ALL DIRECTIONALITIES" and report.directionality != dir_filter:
+            return
+
+        if threat_filter != "ALL THREAT CLASSES":
+            cat = report.ml_threat_category or "BENIGN"
+            if cat.upper() != threat_filter:
+                return
+
+        row_idx = 0 if prepend else self.table_utie.rowCount()
+        self.table_utie.insertRow(row_idx)
+
+        # Color & Visual Indicator
+        color_hex, badge_label, _ = report.get_visual_indicator()
+        text_color = QColor(color_hex)
+
+        fwd_rev_pkts = f"{report.packet_count} / {report.reverse_packet_count if report.reverse_packet_count is not None else '--'}"
+        fwd_rev_bytes = f"{report.byte_count} / {report.reverse_byte_count if report.reverse_byte_count is not None else '--'}"
+        risk_str = str(report.risk_score) if report.risk_score is not None else "--"
+
+        items = [
+            QTableWidgetItem(report.flow_id),
+            QTableWidgetItem(f"{report.src_ip}:{report.src_port}"),
+            QTableWidgetItem(f"{report.dst_ip}:{report.dst_port}"),
+            QTableWidgetItem(report.proto_name),
+            QTableWidgetItem(report.directionality),
+            QTableWidgetItem(fwd_rev_pkts),
+            QTableWidgetItem(fwd_rev_bytes),
+            QTableWidgetItem(f"{report.duration:.3f}s"),
+            QTableWidgetItem(report.anomaly_status),
+            QTableWidgetItem(report.ml_threat_category or "BENIGN"),
+            QTableWidgetItem(risk_str),
+        ]
+
+        for col, it in enumerate(items):
+            it.setForeground(text_color)
+            it.setFont(QFont("Segoe UI", 9))
+            self.table_utie.setItem(row_idx, col, it)
+
+        # Cap table rows at 400 for GUI performance
+        if self.table_utie.rowCount() > 400:
+            self.table_utie.removeRow(self.table_utie.rowCount() - 1)
+
+    def filter_utie_table(self) -> None:
+        """Applies text and dropdown filters across all stored UTIE reports."""
+        self.table_utie.setRowCount(0)
+        for r in self.all_utie_reports[:400]:
+            self._add_utie_report_row(r, prepend=False)
+        self.lbl_utie_table_count.setText(f"{self.table_utie.rowCount()} flows displayed")
+
+    def reset_utie_filters(self) -> None:
+        """Resets all search inputs and filter combo boxes for UTIE."""
+        self.txt_utie_search.clear()
+        self.combo_filter_utie_dir.setCurrentIndex(0)
+        self.combo_filter_utie_threat.setCurrentIndex(0)
+        self.filter_utie_table()
+
+    def on_utie_table_row_clicked(self, row: int, col: int) -> None:
+        """Populates the detail inspector when a user clicks any UTIE row."""
+        flow_id_item = self.table_utie.item(row, 0)
+        if not flow_id_item:
+            return
+        flow_id = flow_id_item.text()
+
+        # Find matching report
+        report = next((r for r in self.all_utie_reports if r.flow_id == flow_id), None)
+        if not report:
+            return
+
+        # 1. Update Directionality badge & Evidence score
+        color_hex, badge_label, _ = report.get_visual_indicator()
+        self.badge_utie_class.setText(f"DIRECTIONALITY: {report.directionality}  [{badge_label}]")
+        self.badge_utie_class.setStyleSheet(f"background-color: rgba(22, 29, 43, 0.9); color: {color_hex}; border: 1px solid {color_hex}; padding: 4px 10px; border-radius: 4px; font-weight: bold;")
+
+        conf_pct = int(report.directionality_confidence * 100.0)
+        self.progress_utie_conf.setValue(conf_pct)
+
+        # 2. Left Box: Directionality Evidence & Sensor Visibility
+        vis = report.sensor_visibility
+        behavior = report.traffic_behavior_summary
+
+        evidence_text = f"""======================================================================
+ UNIDIRECTIONAL TRAFFIC INTELLIGENCE ENGINE (UTIE) - DIRECTIONALITY EVIDENCE
+======================================================================
+Flow ID: {report.flow_id}
+5-Tuple: {report.src_ip}:{report.src_port} >> {report.dst_ip}:{report.dst_port}  [Protocol: {report.proto_name} ({report.proto})]
+Observation Window: {report.duration:.4f} seconds ({report.packet_count} forward packets, {report.byte_count} bytes)
+Directionality Classification: {report.directionality}
+Evidence Confidence Score: {report.directionality_confidence:.2%} (Calibrated scientific evidence)
+
+[EVIDENCE RATIONALE]:
+"""
+        for bullet in report.directionality_evidence:
+            evidence_text += f"  * {bullet}\n"
+
+        evidence_text += f"""
+----------------------------------------------------------------------
+ SENSOR VISIBILITY AWARENESS & CAPTURE CONTEXT
+----------------------------------------------------------------------
+Observation Topology: {vis.get('visibility_type', 'UNKNOWN')}
+Reverse Path Missing: {'YES (Unobserved on Wire)' if vis.get('is_reverse_missing') else 'NO (Return Traffic Captured)'}
+Missing Reason: {vis.get('reverse_missing_reason', 'N/A')}
+Completeness Status: {vis.get('completeness_status', 'UNKNOWN')}
+Confidence Penalty: -{vis.get('confidence_penalty', 0.0):.2f} (Sensor limitation deduction)
+
+[SENSOR TOPOLOGY NOTES]:
+"""
+        for note in vis.get("sensor_notes", []):
+            evidence_text += f"  > {note}\n"
+
+        self.txt_utie_evidence.setText(evidence_text)
+
+        # 3. Right Box: Behavioral Dynamics & SOC Triage Playbook
+        pkt_stats = behavior.get("pkt_len_stats", {})
+        timing = behavior.get("timing_dynamics", {})
+        flag_details = behavior.get("flag_details", {})
+
+        behavior_text = f"""======================================================================
+ TRAFFIC BEHAVIOR PROFILE & DYNAMICS
+======================================================================
+Packet Length Distribution:
+  Min: {pkt_stats.get('min', 0.0)} bytes  |  Max: {pkt_stats.get('max', 0.0)} bytes  |  Mean: {pkt_stats.get('mean', 0.0)} bytes  |  StdDev: {pkt_stats.get('std', 0.0)}
+  Size Homogeneity: {pkt_stats.get('homogeneity', 0.0):.2%} (100% = identical payload sizes / synthetic generator)
+  Shannon Packet Length Entropy: {behavior.get('entropy_pkt_len', 0.0):.3f} bits
+
+Timing Dynamics & Burstiness:
+  Packet Rate: {report.pkt_rate:.1f} pps  |  Byte Rate: {report.byte_rate:.1f} Bps
+  Inter-Arrival Time (IAT) Mean: {timing.get('iat_mean', 0.0):.4f}s  |  StdDev: {timing.get('iat_std', 0.0):.4f}s
+  Burstiness Index: {timing.get('burstiness_index', 0.0):.3f} (Variance-to-mean coefficient)
+  Periodic C2 Beaconing Detected: {'YES (Strict Periodic Pattern)' if timing.get('is_periodic_beacon') else 'NO (Normal Variance)'}
+
+Protocol & TCP State:
+  Flag Signature Pattern: {behavior.get('flag_pattern', 'STANDARD')}
+  Flags Breakdown: SYN={flag_details.get('SYN', 0)}, ACK={flag_details.get('ACK', 0)}, FIN={flag_details.get('FIN', 0)}, RST={flag_details.get('RST', 0)}, PSH={flag_details.get('PSH', 0)}
+
+----------------------------------------------------------------------
+ AI DETECTION & MULTI-FACTOR RISK PRIORITIZATION
+----------------------------------------------------------------------
+Supervised Classifier: {report.ml_threat_category or 'BENIGN'}  (Confidence: {report.ml_confidence if report.ml_confidence is not None else 0.5:.1%})
+Isolation Forest Anomaly Status: {report.anomaly_status}  (Anomaly Score: {report.anomaly_score:.3f})
+Composite Risk Score: {report.risk_score if report.risk_score is not None else 0} / 100  |  Severity: {report.severity or 'INFORMATIONAL'}
+
+----------------------------------------------------------------------
+ SUGGESTED SOC INVESTIGATION PLAYBOOK
+----------------------------------------------------------------------
+"""
+        for step in report.suggested_investigation_steps:
+            behavior_text += f"{step}\n"
+
+        self.txt_utie_behavior.setText(behavior_text)
+
     def save_and_apply_settings(self) -> None:
         bpf = self.txt_bpf.text().strip()
         if not bpf:
@@ -1700,8 +2145,13 @@ class UniGuardDesktopApp(QMainWindow):
         self.btn_stop.setEnabled(True)
         self.table.setRowCount(0)
         self.table_alerts.setRowCount(0)
+        self.table_utie.setRowCount(0)
         self.all_events.clear()
         self.threat_events.clear()
+        self.all_utie_reports.clear()
+        self.filtered_utie_reports.clear()
+        self.utie_counts = {k: 0 for k in self.utie_counts}
+        self.utie_suspicious_count = 0
 
         self.total_packets = 0
         self.total_flows = 0
@@ -1772,6 +2222,7 @@ class UniGuardDesktopApp(QMainWindow):
         SocStateBridge.get().worker_thread = self.worker
         self.lbl_health_proc.setText("Processing: ACTIVE")
         self.worker.event_generated.connect(self.on_event_received)
+        self.worker.utie_generated.connect(self.on_utie_report_received)
         self.worker.stats_updated.connect(self.on_stats_updated)
         self.worker.finished.connect(self.on_monitoring_finished)
         self.worker.error_occurred.connect(self.on_worker_error)

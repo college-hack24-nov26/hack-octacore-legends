@@ -38,9 +38,9 @@ def pump_events(app, duration_secs=2.0, interval=0.05):
 
 
 def test_module_structure_and_tabs(desktop_window):
-    """Module 1-8: Verify 8 tabs exist in proper order."""
-    assert desktop_window.tabs.count() == 8
-    tab_names = [desktop_window.tabs.tabText(i).upper() for i in range(8)]
+    """Module 1-9: Verify all native tabs exist in proper order."""
+    assert desktop_window.tabs.count() >= 9
+    tab_names = [desktop_window.tabs.tabText(i).upper() for i in range(desktop_window.tabs.count())]
     assert "SECURITY OVERVIEW" in tab_names[0]
     assert "LIVE MONITORING" in tab_names[1]
     assert "THREAT ALERTS" in tab_names[2]
@@ -49,6 +49,7 @@ def test_module_structure_and_tabs(desktop_window):
     assert "MODEL / AI STATUS" in tab_names[5]
     assert "EVENT HISTORY" in tab_names[6]
     assert "SETTINGS" in tab_names[7]
+    assert "UNIDIRECTIONAL INTELLIGENCE" in tab_names[8]
 
 
 def test_module_6_dynamic_model_status_and_self_test(desktop_window):
