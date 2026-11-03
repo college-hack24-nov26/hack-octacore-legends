@@ -996,36 +996,12 @@
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
           <!-- Left: ML Pipeline Status Cards (Old Tab 6 Parity) -->
           <div class="soc-card" style="display:flex; flex-direction:column; gap:12px;">
-            <div class="card-title">Production ML Models & Inference Architecture</div>
-            <div style="display:flex; flex-direction:column; gap:8px; font-size:12px">
-              <div style="display:flex; justify-content:space-between; padding:8px 12px; background:rgba(15,23,42,0.6); border-radius:var(--radius-sm)">
-                <span style="color:var(--text-muted)">Supervised Classifier</span>
-                <span style="color:#10b981; font-weight:600">Random Forest (120 Trees) [ONLINE]</span>
-              </div>
-              <div style="display:flex; justify-content:space-between; padding:8px 12px; background:rgba(15,23,42,0.6); border-radius:var(--radius-sm)">
-                <span style="color:var(--text-muted)">Secondary Classifier</span>
-                <span style="color:#38bdf8; font-weight:600">XGBoost (100 Estimators) [READY]</span>
-              </div>
-              <div style="display:flex; justify-content:space-between; padding:8px 12px; background:rgba(15,23,42,0.6); border-radius:var(--radius-sm)">
-                <span style="color:var(--text-muted)">Anomaly Engine</span>
-                <span style="color:#10b981; font-weight:600">Isolation Forest (Contam: 0.04) [ONLINE]</span>
-              </div>
-              <div style="display:flex; justify-content:space-between; padding:8px 12px; background:rgba(15,23,42,0.6); border-radius:var(--radius-sm)">
-                <span style="color:var(--text-muted)">Explainability (XAI)</span>
-                <span style="color:#a855f7; font-weight:600">SHAP TreeExplainer [ATTRIBUTION ACTIVE]</span>
-              </div>
-              <div style="display:flex; justify-content:space-between; padding:8px 12px; background:rgba(15,23,42,0.6); border-radius:var(--radius-sm)">
-                <span style="color:var(--text-muted)">Feature Schema</span>
-                <span style="color:#fff; font-weight:600">Strict 24 Unidirectional Vectors</span>
-              </div>
-              <div style="display:flex; justify-content:space-between; padding:8px 12px; background:rgba(15,23,42,0.6); border-radius:var(--radius-sm)">
-                <span style="color:var(--text-muted)">Streaming Math</span>
-                <span style="color:#fff; font-weight:600">Welford's Algorithm (O(1) Variance)</span>
-              </div>
-              <div style="display:flex; justify-content:space-between; padding:8px 12px; background:rgba(15,23,42,0.6); border-radius:var(--radius-sm)">
-                <span style="color:var(--text-muted)">Sample Buffer Bound</span>
-                <span style="color:#fff; font-weight:600">K = 100 Pkts / Flow (&lt; 2 KB RAM)</span>
-              </div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div class="card-title">Production ML Models & Inference Architecture</div>
+              <button id="btn-refresh-models" class="btn-map-control" style="font-size:11px; padding:4px 10px;">REFRESH STATUS</button>
+            </div>
+            <div id="ml-models-container" style="display:flex; flex-direction:column; gap:8px; font-size:12px">
+              <div style="color:var(--text-muted); padding:8px;">Querying active machine learning pipeline status...</div>
             </div>
           </div>
 
@@ -1191,14 +1167,14 @@
 
       <div class="modal-footer">
         <div style="display:flex; gap:10px">
-          <button id="btn-action-block-ip" class="btn-start-stop active-stop" style="width:auto; padding:6px 14px">
-            BLOCK IP ADDRESS
+          <button id="btn-action-block-ip" class="btn-start-stop" style="width:auto; padding:6px 14px; background:rgba(239,68,68,0.2); border:1px solid var(--accent-crimson); color:#fff">
+            ADD TO WATCHLIST / FIREWALL EXPORT
           </button>
           <button id="btn-action-ack" class="btn-map-control" style="padding:6px 14px">
             ACKNOWLEDGE INCIDENT
           </button>
         </div>
-        <span style="font-size:11px; color:var(--text-muted)">UniGuard Incident Orchestrator</span>
+        <span style="font-size:11px; color:var(--text-muted)">UniGuard AI Passive NDR Advisory (Zero In-Band Packet Interference)</span>
       </div>
     </div>
   </div>

@@ -12,6 +12,7 @@ import json
 import time
 import mimetypes
 import threading
+from urllib.parse import urlparse, parse_qs
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Optional, Dict, Any, List
 import psutil
@@ -93,6 +94,158 @@ class SocStateBridge:
         self.logs: List[Dict[str, Any]] = []
         self.worker_thread = None
         self.database = SecurityDatabase()
+
+    def get_pipeline_status(self) -> Dict[str, Any]:
+        """Dynamically inspects real machine learning model files and pipeline components."""
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+        models_dir = os.path.join(project_root, "models_saved")
+
+        prep_path = os.path.join(models_dir, "preprocessor.joblib")
+        rf_path = os.path.join(models_dir, "uniguard_rf_model.joblib")
+        xgb_path = os.path.join(models_dir, "uniguard_xgb_model.joblib")
+        iso_path = os.path.join(models_dir, "uniguard_isolation_forest.joblib")
+        dir_iso_path = os.path.join(models_dir, "directionality_isolation_forest.joblib")
+
+        status: Dict[str, Any] = {}
+
+        # 1. Preprocessor (RobustScaler + LabelEncoder)
+        if os.path.exists(prep_path):
+            status["preprocessor"] = {
+                "name": "FlowDataPreprocessor (RobustScaler + LabelEncoder)",
+                "status": "ONLINE",
+                "state": "Active in Pipeline",
+                "features_count": 24,
+                "file": "preprocessor.joblib",
+                "size_kb": round(os.path.getsize(prep_path) / 1024, 1),
+                "description": "Normalizes 24 unidirectional flow metrics and maps multi-class threat categories.",
+            }
+        else:
+            status["preprocessor"] = {
+                "name": "FlowDataPreprocessor",
+                "status": "OFFLINE",
+                "state": "Model File Missing",
+                "file": "preprocessor.joblib",
+                "description": "Preprocessor file not found on disk.",
+            }
+
+        # 2. Random Forest (Primary Supervised Threat Classifier)
+        if os.path.exists(rf_path):
+            status["supervised"] = {
+                "name": "Random Forest Classifier",
+                "role": "Primary Supervised Detector",
+                "status": "ONLINE",
+                "state": "Active in Production Pipeline",
+                "architecture": "120 Estimators, Max Depth 16, Balanced Subsample",
+                "classes": ["BENIGN", "PORT_SCAN", "SYN_FLOOD", "UDP_FLOOD", "DATA_EXFILTRATION", "SLOWLORIS"],
+                "file": "uniguard_rf_model.joblib",
+                "size_kb": round(os.path.getsize(rf_path) / 1024, 1),
+                "description": "Primary multi-class cybersecurity classification engine evaluating unidirectional streams.",
+            }
+        else:
+            status["supervised"] = {
+                "name": "Random Forest Classifier",
+                "role": "Primary Supervised Detector",
+                "status": "OFFLINE",
+                "state": "Model File Missing",
+                "description": "uniguard_rf_model.joblib not found on disk.",
+            }
+
+        # 3. XGBoost (Secondary / Standby Classifier)
+        if os.path.exists(xgb_path):
+            status["secondary"] = {
+                "name": "XGBoost Classifier",
+                "role": "Secondary / Benchmark Detector",
+                "status": "STANDBY",
+                "state": "Available on Disk (Standby)",
+                "architecture": "100 Estimators, Max Depth 6, Learning Rate 0.10",
+                "file": "uniguard_xgb_model.joblib",
+                "size_kb": round(os.path.getsize(xgb_path) / 1024, 1),
+                "description": "Secondary gradient boosted tree model trained and available on disk for offline benchmarks.",
+                "pipeline_note": "Primary pipeline executes Random Forest; XGBoost is available as an alternate benchmark.",
+            }
+        else:
+            status["secondary"] = {
+                "name": "XGBoost Classifier",
+                "role": "Secondary Classifier",
+                "status": "UNAVAILABLE",
+                "state": "Not Installed / File Missing",
+                "description": "uniguard_xgb_model.joblib not present.",
+            }
+
+        # 4. Isolation Forest Anomaly Detector
+        if os.path.exists(iso_path):
+            status["anomaly"] = {
+                "name": "Isolation Forest Anomaly Detector",
+                "role": "Unsupervised Behavioral Anomaly Scoring",
+                "status": "ONLINE",
+                "state": "Active in Production Pipeline",
+                "architecture": "100 Estimators, Contamination 0.04",
+                "file": "uniguard_isolation_forest.joblib",
+                "size_kb": round(os.path.getsize(iso_path) / 1024, 1),
+                "description": "Detects novel zero-day behavioral deviations in forward-only network traffic vectors.",
+            }
+        else:
+            status["anomaly"] = {
+                "name": "Isolation Forest Anomaly Detector",
+                "status": "OFFLINE",
+                "state": "Model File Missing",
+                "description": "uniguard_isolation_forest.joblib not found.",
+            }
+
+        # 5. Directionality Engine (Task 20)
+        if os.path.exists(dir_iso_path):
+            status["directionality_model"] = {
+                "name": "Directionality Isolation Forest & K-Means",
+                "role": "Flow Directionality & Traffic Asymmetry Engine",
+                "status": "ONLINE",
+                "state": "Active in Flow Engine",
+                "architecture": "100 Estimators, Contamination 0.05, 4 Archetypes",
+                "file": "directionality_isolation_forest.joblib",
+                "size_kb": round(os.path.getsize(dir_iso_path) / 1024, 1),
+                "description": "Classifies Bidirectional, Asymmetric, Strongly Asymmetric, and Unidirectional flows.",
+            }
+        else:
+            status["directionality_model"] = {
+                "name": "Directionality Engine",
+                "status": "HEURISTIC ONLY",
+                "state": "Using 5/20 Heuristic Baseline",
+                "description": "Fitted model not found; using heuristic rules.",
+            }
+
+        # 6. SHAP Explainability
+        try:
+            import shap
+            shap_ready = True
+        except ImportError:
+            shap_ready = False
+
+        status["xai"] = {
+            "name": "SHAP TreeExplainer",
+            "role": "Root Cause Feature Attribution",
+            "status": "ONLINE" if shap_ready else "UNAVAILABLE",
+            "state": "Attribution Gate Active" if shap_ready else "Library Not Found",
+            "architecture": "TreeSHAP with Elephant-Flow Active-Timeout Gating",
+            "description": "Extracts top contributing forward features and calculates risk-increasing impacts.",
+        }
+
+        # 7. Unidirectional Feature Schema
+        status["feature_schema"] = {
+            "name": "Strict 24 Unidirectional Vectors",
+            "status": "ACTIVE",
+            "state": "Zero Reverse Channel Information Leakage",
+            "features_count": 24,
+            "description": "Strict unidirectional forward-windowed features ensuring complete hardware diode compatibility.",
+        }
+
+        # 8. Streaming Math
+        status["streaming_math"] = {
+            "name": "Welford's Streaming Algorithm",
+            "status": "ACTIVE",
+            "state": "O(1) Streaming Variance/Mean per Flow Record",
+            "description": "Computes rolling packet and byte rates in constant memory without storing full packet histories.",
+        }
+
+        return status
 
     @classmethod
     def get(cls) -> SocStateBridge:
@@ -196,7 +349,7 @@ class SocHttpHandler(BaseHTTPRequestHandler):
             return
 
         elif self.path.startswith("/api/models/status"):
-            self.send_json_response(bridge.pipeline_status)
+            self.send_json_response(bridge.get_pipeline_status())
             return
 
         elif self.path.startswith("/api/logs"):
@@ -205,7 +358,21 @@ class SocHttpHandler(BaseHTTPRequestHandler):
 
         elif self.path.startswith("/api/events/history"):
             try:
-                events = bridge.database.get_recent_events(limit=100, min_risk=0)
+                parsed = urlparse(self.path)
+                params = parse_qs(parsed.query)
+                limit = int(params.get("limit", [100])[0])
+                min_risk = int(params.get("min_risk", [0])[0])
+                severity = params.get("severity", ["ALL"])[0]
+                threat_type = params.get("threat_type", ["ALL"])[0]
+                query = params.get("query", [""])[0]
+
+                events = bridge.database.search_events(
+                    query=query,
+                    severity=severity,
+                    threat_type=threat_type,
+                    min_risk=min_risk,
+                    limit=limit,
+                )
                 self.send_json_response(events)
             except Exception as e:
                 self.send_json_response([])

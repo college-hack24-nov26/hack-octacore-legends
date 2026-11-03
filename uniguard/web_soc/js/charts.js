@@ -12,15 +12,15 @@ class SocCharts {
     this.maxHistory = 60;
     this.activeMetric = 'pps'; // 'pps', 'bps', 'active_flows', 'threats'
     
-    // Seed 60 seconds of baseline telemetry
+    // Initialize clean baseline with 0 values (no fabricated initial traffic)
     const now = Date.now();
     for (let i = 59; i >= 0; i--) {
       this.trafficHistory.push({
         time: new Date(now - i * 1000),
-        pps: 12000 + Math.floor(Math.random() * 8000),
-        bps: 45000000 + Math.floor(Math.random() * 25000000),
-        active_flows: 140 + Math.floor(Math.random() * 40),
-        threats: Math.random() < 0.2 ? Math.floor(Math.random() * 3) + 1 : 0
+        pps: 0,
+        bps: 0,
+        active_flows: 0,
+        threats: 0
       });
     }
   }

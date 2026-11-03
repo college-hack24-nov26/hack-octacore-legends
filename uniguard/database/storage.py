@@ -71,6 +71,45 @@ class SecurityDatabase:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_severity ON security_events(severity);")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_threat ON security_events(threat_type);")
 
+            # UTIE Flow Intelligence Table (SIH 2026 Core Feature)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS utie_flow_intelligence (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    flow_id TEXT UNIQUE NOT NULL,
+                    timestamp REAL NOT NULL,
+                    src_ip TEXT NOT NULL,
+                    dst_ip TEXT NOT NULL,
+                    src_port INTEGER NOT NULL,
+                    dst_port INTEGER NOT NULL,
+                    proto INTEGER NOT NULL,
+                    proto_name TEXT NOT NULL,
+                    directionality TEXT NOT NULL,
+                    directionality_confidence REAL NOT NULL,
+                    sensor_visibility_type TEXT NOT NULL,
+                    is_reverse_missing INTEGER DEFAULT 0,
+                    packet_count INTEGER NOT NULL,
+                    reverse_packet_count INTEGER,
+                    byte_count INTEGER NOT NULL,
+                    reverse_byte_count INTEGER,
+                    duration REAL NOT NULL,
+                    pkt_rate REAL NOT NULL,
+                    byte_rate REAL NOT NULL,
+                    anomaly_status TEXT NOT NULL,
+                    anomaly_score REAL NOT NULL,
+                    threat_category TEXT,
+                    risk_score INTEGER,
+                    severity TEXT,
+                    evidence_json TEXT NOT NULL,
+                    behavior_json TEXT NOT NULL,
+                    investigation_json TEXT NOT NULL
+                );
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_utie_timestamp ON utie_flow_intelligence(timestamp);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_utie_directionality ON utie_flow_intelligence(directionality);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_utie_threat ON utie_flow_intelligence(threat_category);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_utie_src ON utie_flow_intelligence(src_ip);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_utie_dst ON utie_flow_intelligence(dst_ip);")
+
             # Migrations for existing databases
             for col, col_type in [
                 ("directionality_state", "TEXT DEFAULT 'UNKNOWN'"),
@@ -162,6 +201,57 @@ class SecurityDatabase:
                 events.append(item)
             return events
 
+    def search_events(
+        self,
+        query: str = "",
+        severity: str = "ALL",
+        threat_type: str = "ALL",
+        min_risk: int = 0,
+        limit: int = 200,
+    ) -> List[Dict[str, Any]]:
+        """Searches and filters historical security events with multi-parameter criteria."""
+        sql = "SELECT * FROM security_events WHERE risk_score >= ?"
+        params: List[Any] = [min_risk]
+
+        if severity and severity.upper() != "ALL":
+            sql += " AND severity = ?"
+            params.append(severity.upper())
+
+        if threat_type and threat_type.upper() != "ALL":
+            sql += " AND threat_type = ?"
+            params.append(threat_type.upper())
+
+        if query:
+            clean_q = f"%{query.strip()}%"
+            sql += " AND (event_id LIKE ? OR src_ip LIKE ? OR dst_ip LIKE ? OR flow_key LIKE ? OR threat_type LIKE ?)"
+            params.extend([clean_q, clean_q, clean_q, clean_q, clean_q])
+
+        sql += " ORDER BY timestamp DESC LIMIT ?"
+        params.append(limit)
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(sql, params)
+            rows = cursor.fetchall()
+            events = []
+            for row in rows:
+                item = dict(row)
+                try:
+                    item["contributing_factors"] = json.loads(item["contributing_factors"])
+                except Exception:
+                    item["contributing_factors"] = []
+                try:
+                    item["flow_metrics"] = json.loads(item["flow_metrics"])
+                except Exception:
+                    item["flow_metrics"] = {}
+                item.setdefault("directionality_state", "UNKNOWN")
+                item.setdefault("directionality_score", 0.0)
+                item.setdefault("directionality_confidence", 0.0)
+                item.setdefault("baseline_5_20_result", "N/A")
+                item.setdefault("is_excluded", 0)
+                events.append(item)
+            return events
+
     def get_summary_statistics(self) -> Dict[str, Any]:
         """Calculates aggregate statistics for the desktop dashboard header cards."""
         with self._get_connection() as conn:
@@ -191,4 +281,173 @@ class SecurityDatabase:
                 "threat_distribution": threat_distribution,
                 "directionality_distribution": directionality_distribution,
                 "excluded_flows_count": excluded_flows,
+            }
+
+    # =========================================================================
+    # UTIE Intelligence Database Operations (SIH 2026 Core Feature)
+    # =========================================================================
+
+    def insert_utie_report(self, report: Any) -> None:
+        """Persists a single UTIEIntelligenceReport object to SQLite."""
+        self.insert_utie_reports_batch([report])
+
+    def insert_utie_reports_batch(self, reports: List[Any]) -> None:
+        """Persists a batch of UTIEIntelligenceReport objects in a single transaction."""
+        if not reports:
+            return
+        records = []
+        for r in reports:
+            # Can accept UTIEIntelligenceReport or dict
+            d = r.to_dict() if hasattr(r, "to_dict") else r
+            records.append((
+                d["flow_id"],
+                d.get("analysis_timestamp", time.time() if "time" in globals() else 0.0),
+                d["src_ip"],
+                d["dst_ip"],
+                d["src_port"],
+                d["dst_port"],
+                d["proto"],
+                d.get("proto_name", "UNKNOWN"),
+                d["directionality"],
+                d["directionality_confidence"],
+                d.get("sensor_visibility", {}).get("visibility_type", "UNKNOWN") if isinstance(d.get("sensor_visibility"), dict) else "UNKNOWN",
+                1 if d.get("sensor_visibility", {}).get("is_reverse_missing", False) else 0,
+                d["packet_count"],
+                d.get("reverse_packet_count"),
+                d["byte_count"],
+                d.get("reverse_byte_count"),
+                d["duration"],
+                d["pkt_rate"],
+                d["byte_rate"],
+                d["anomaly_status"],
+                d["anomaly_score"],
+                d.get("ml_threat_category"),
+                d.get("risk_score"),
+                d.get("severity"),
+                json.dumps(d.get("directionality_evidence", [])),
+                json.dumps(d.get("traffic_behavior_summary", {})),
+                json.dumps(d.get("suggested_investigation_steps", [])),
+            ))
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.executemany(
+                """
+                INSERT OR IGNORE INTO utie_flow_intelligence (
+                    flow_id, timestamp, src_ip, dst_ip, src_port, dst_port,
+                    proto, proto_name, directionality, directionality_confidence,
+                    sensor_visibility_type, is_reverse_missing, packet_count,
+                    reverse_packet_count, byte_count, reverse_byte_count,
+                    duration, pkt_rate, byte_rate, anomaly_status, anomaly_score,
+                    threat_category, risk_score, severity,
+                    evidence_json, behavior_json, investigation_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                records,
+            )
+            conn.commit()
+
+    def get_recent_utie_reports(self, limit: int = 100, directionality: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Retrieves recent UTIE flow intelligence reports with optional directionality filter."""
+        sql = "SELECT * FROM utie_flow_intelligence"
+        params: List[Any] = []
+        if directionality and directionality.upper() != "ALL":
+            sql += " WHERE directionality = ?"
+            params.append(directionality.upper())
+
+        sql += " ORDER BY timestamp DESC LIMIT ?"
+        params.append(limit)
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(sql, params)
+            rows = cursor.fetchall()
+            reports = []
+            for row in rows:
+                item = dict(row)
+                try:
+                    item["directionality_evidence"] = json.loads(item["evidence_json"])
+                except Exception:
+                    item["directionality_evidence"] = []
+                try:
+                    item["traffic_behavior_summary"] = json.loads(item["behavior_json"])
+                except Exception:
+                    item["traffic_behavior_summary"] = {}
+                try:
+                    item["suggested_investigation_steps"] = json.loads(item["investigation_json"])
+                except Exception:
+                    item["suggested_investigation_steps"] = []
+                reports.append(item)
+            return reports
+
+    def search_utie_reports(
+        self,
+        query: Optional[str] = None,
+        directionality: Optional[str] = None,
+        min_risk: int = 0,
+        limit: int = 100,
+    ) -> List[Dict[str, Any]]:
+        """Searches UTIE reports across IP, port, flow_id, threat_category, and directionality."""
+        sql = "SELECT * FROM utie_flow_intelligence WHERE 1=1"
+        params: List[Any] = []
+
+        if min_risk > 0:
+            sql += " AND (risk_score IS NOT NULL AND risk_score >= ?)"
+            params.append(min_risk)
+
+        if directionality and directionality.upper() != "ALL":
+            sql += " AND directionality = ?"
+            params.append(directionality.upper())
+
+        if query and query.strip():
+            q = f"%{query.strip()}%"
+            sql += " AND (flow_id LIKE ? OR src_ip LIKE ? OR dst_ip LIKE ? OR threat_category LIKE ? OR proto_name LIKE ?)"
+            params.extend([q, q, q, q, q])
+
+        sql += " ORDER BY timestamp DESC LIMIT ?"
+        params.append(limit)
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(sql, params)
+            rows = cursor.fetchall()
+            results = []
+            for row in rows:
+                item = dict(row)
+                try:
+                    item["directionality_evidence"] = json.loads(item["evidence_json"])
+                except Exception:
+                    item["directionality_evidence"] = []
+                try:
+                    item["traffic_behavior_summary"] = json.loads(item["behavior_json"])
+                except Exception:
+                    item["traffic_behavior_summary"] = {}
+                try:
+                    item["suggested_investigation_steps"] = json.loads(item["investigation_json"])
+                except Exception:
+                    item["suggested_investigation_steps"] = []
+                results.append(item)
+            return results
+
+    def get_utie_summary_statistics(self) -> Dict[str, Any]:
+        """Calculates aggregate statistics across stored UTIE records."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM utie_flow_intelligence")
+            total = cursor.fetchone()[0]
+
+            cursor.execute("SELECT directionality, COUNT(*) as cnt FROM utie_flow_intelligence GROUP BY directionality")
+            dir_dist = {row["directionality"]: row["cnt"] for row in cursor.fetchall()}
+
+            cursor.execute("SELECT COUNT(*) FROM utie_flow_intelligence WHERE (risk_score >= 35 OR threat_category NOT IN ('BENIGN', NULL))")
+            suspicious = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM utie_flow_intelligence WHERE anomaly_status = 'ANOMALOUS'")
+            anomalous = cursor.fetchone()[0]
+
+            return {
+                "total_flows_stored": total,
+                "directionality_distribution": dir_dist,
+                "suspicious_flows": suspicious,
+                "anomalous_flows": anomalous,
             }

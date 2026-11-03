@@ -164,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (fullIp && !state.blockedIps.includes(fullIp)) {
       state.blockedIps.push(fullIp);
       document.getElementById('kpi-blocked-ips').textContent = state.blockedIps.length;
-      alert(`[UniGuard SOC] IP address ${fullIp} added to active firewall mitigation drop list.`);
+      alert(`[UniGuard SOC Advisory] IP ${fullIp} has been added to the SOC Investigation Watchlist and staged for firewall export.\n\nNote: UniGuard AI is a passive NDR; automated packet drops require border firewall policy orchestration.`);
     }
     modalOverlay.classList.remove('active');
   });
@@ -173,6 +173,56 @@ document.addEventListener('DOMContentLoaded', () => {
     alert('[UniGuard SOC] Incident status set to ACKNOWLEDGED by Tier-2 Security Analyst.');
     modalOverlay.classList.remove('active');
   });
+
+  function fetchModelStatus() {
+    const container = document.getElementById('ml-models-container');
+    if (!container) return;
+    fetch('/api/models/status')
+      .then(res => res.json())
+      .then(data => {
+        container.innerHTML = '';
+        const order = ['supervised', 'secondary', 'anomaly', 'directionality_model', 'preprocessor', 'xai', 'feature_schema', 'streaming_math'];
+        order.forEach(k => {
+          const mod = data[k];
+          if (!mod) return;
+          const row = document.createElement('div');
+          row.style.cssText = 'display:flex; flex-direction:column; gap:4px; padding:8px 12px; background:rgba(15,23,42,0.6); border-radius:var(--radius-sm); border:1px solid rgba(255,255,255,0.05);';
+          
+          let badgeColor = '#10b981';
+          let badgeBg = 'rgba(16,185,129,0.15)';
+          if (mod.status === 'STANDBY') {
+            badgeColor = '#38bdf8';
+            badgeBg = 'rgba(56,189,248,0.15)';
+          } else if (mod.status === 'OFFLINE' || mod.status === 'UNAVAILABLE') {
+            badgeColor = '#ef4444';
+            badgeBg = 'rgba(239,68,68,0.15)';
+          } else if (mod.status === 'HEURISTIC ONLY') {
+            badgeColor = '#f59e0b';
+            badgeBg = 'rgba(245,158,11,0.15)';
+          }
+
+          row.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-weight:600; color:#f0f6fc;">${mod.name}</span>
+              <span style="background:${badgeBg}; color:${badgeColor}; font-weight:700; font-size:10px; padding:2px 8px; border-radius:4px;">${mod.status}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted);">
+              <span>${mod.state || mod.role || ''}</span>
+              <span>${mod.size_kb ? `${mod.size_kb} KB` : ''}</span>
+            </div>
+            ${mod.description ? `<div style="font-size:10.5px; color:#8b949e; margin-top:2px;">${mod.description}</div>` : ''}
+            ${mod.pipeline_note ? `<div style="font-size:10px; color:#38bdf8; font-style:italic;">ℹ ${mod.pipeline_note}</div>` : ''}
+          `;
+          container.appendChild(row);
+        });
+      })
+      .catch(() => {
+        container.innerHTML = '<div style="color:#ef4444; padding:8px;">Failed to connect to model status endpoint.</div>';
+      });
+  }
+
+  document.getElementById('btn-refresh-models')?.addEventListener('click', fetchModelStatus);
+  fetchModelStatus();
 
   // Settings Save Handler
   document.getElementById('btn-save-settings')?.addEventListener('click', () => {
@@ -785,6 +835,12 @@ document.addEventListener('DOMContentLoaded', () => {
       .then(res => res.json())
       .then(logs => appendLogs(logs))
       .catch(() => {});
+
+    // 8. Periodically refresh Model Status every 5 seconds
+    if (!state._pollCount) state._pollCount = 0;
+    if (++state._pollCount % 5 === 0) {
+      fetchModelStatus();
+    }
 
   }, 1000);
 
