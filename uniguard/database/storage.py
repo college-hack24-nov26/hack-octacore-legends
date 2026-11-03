@@ -112,6 +112,28 @@ class SecurityDatabase:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_utie_src ON utie_flow_intelligence(src_ip);")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_utie_dst ON utie_flow_intelligence(dst_ip);")
 
+            # Generated Reports Table (Module 10: Security Report Generator)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS generated_reports (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    report_id TEXT UNIQUE NOT NULL,
+                    report_name TEXT NOT NULL,
+                    report_type TEXT NOT NULL,
+                    date_range TEXT NOT NULL,
+                    start_time REAL,
+                    end_time REAL,
+                    export_format TEXT NOT NULL,
+                    file_path TEXT NOT NULL,
+                    timestamp REAL NOT NULL,
+                    status TEXT NOT NULL,
+                    total_events INTEGER DEFAULT 0,
+                    high_risk_events INTEGER DEFAULT 0,
+                    summary_text TEXT DEFAULT ''
+                );
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_reports_timestamp ON generated_reports(timestamp);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_reports_type ON generated_reports(report_type);")
+
             # Migrations for existing databases
             for col, col_type in [
                 ("directionality_state", "TEXT DEFAULT 'UNKNOWN'"),
@@ -489,3 +511,173 @@ class SecurityDatabase:
                 "suspicious_flows": suspicious,
                 "anomalous_flows": anomalous,
             }
+
+    # =========================================================================
+    # Module 10: Security Report Generator Storage Operations
+    # =========================================================================
+
+    def insert_report(self, report_dict: Dict[str, Any]) -> None:
+        """Saves metadata for a generated security report."""
+        sql = """
+            INSERT OR REPLACE INTO generated_reports (
+                report_id, report_name, report_type, date_range,
+                start_time, end_time, export_format, file_path,
+                timestamp, status, total_events, high_risk_events, summary_text
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        params = (
+            report_dict.get("report_id", ""),
+            report_dict.get("report_name", "Untitled Report"),
+            report_dict.get("report_type", "EXECUTIVE"),
+            report_dict.get("date_range", "LAST_24_HOURS"),
+            report_dict.get("start_time"),
+            report_dict.get("end_time"),
+            report_dict.get("export_format", "PDF"),
+            report_dict.get("file_path", ""),
+            report_dict.get("timestamp", time.time()),
+            report_dict.get("status", "SUCCESS"),
+            report_dict.get("total_events", 0),
+            report_dict.get("high_risk_events", 0),
+            report_dict.get("summary_text", ""),
+        )
+        with self._get_connection() as conn:
+            conn.execute(sql, params)
+            conn.commit()
+
+    def get_report_history(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """Retrieves history of generated reports ordered by newest first."""
+        sql = "SELECT * FROM generated_reports ORDER BY timestamp DESC LIMIT ?"
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(sql, (limit,))
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_report_by_id(self, report_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieves a single generated report record by its report_id."""
+        sql = "SELECT * FROM generated_reports WHERE report_id = ? LIMIT 1"
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(sql, (report_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+
+    def delete_report(self, report_id: str) -> bool:
+        """Deletes a report record from generated_reports by report_id."""
+        sql = "DELETE FROM generated_reports WHERE report_id = ?"
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(sql, (report_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def get_reports_kpi_summary(self) -> Dict[str, Any]:
+        """Calculates report overview KPI counters."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM generated_reports")
+            total_reports = cursor.fetchone()[0] or 0
+
+            cursor.execute("SELECT MAX(timestamp) FROM generated_reports")
+            last_ts = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM security_events")
+            total_events = cursor.fetchone()[0] or 0
+
+            cursor.execute("SELECT COUNT(*) FROM security_events WHERE risk_score >= 70 OR UPPER(severity) IN ('CRITICAL', 'HIGH')")
+            high_risk_events = cursor.fetchone()[0] or 0
+
+            return {
+                "total_reports": total_reports,
+                "last_generated_ts": last_ts,
+                "total_analyzed_events": total_events,
+                "total_high_risk_events": high_risk_events,
+            }
+
+    def get_events_by_timerange(
+        self,
+        start_time: Optional[float] = None,
+        end_time: Optional[float] = None,
+        limit: int = 10000,
+    ) -> List[Dict[str, Any]]:
+        """Retrieves security events within a specified timestamp window."""
+        sql = "SELECT * FROM security_events WHERE 1=1"
+        params: List[Any] = []
+
+        if start_time is not None:
+            sql += " AND timestamp >= ?"
+            params.append(start_time)
+        if end_time is not None:
+            sql += " AND timestamp <= ?"
+            params.append(end_time)
+
+        sql += " ORDER BY timestamp DESC LIMIT ?"
+        params.append(limit)
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(sql, params)
+            rows = cursor.fetchall()
+            events = []
+            for row in rows:
+                item = dict(row)
+                try:
+                    item["contributing_factors"] = json.loads(item["contributing_factors"])
+                except Exception:
+                    item["contributing_factors"] = []
+                try:
+                    item["flow_metrics"] = json.loads(item["flow_metrics"])
+                except Exception:
+                    item["flow_metrics"] = {}
+                try:
+                    item["explanation"] = json.loads(item.get("explanation_json", "{}") or "{}")
+                except Exception:
+                    item["explanation"] = {}
+                item.setdefault("directionality_state", "UNKNOWN")
+                item.setdefault("directionality_score", 0.0)
+                item.setdefault("directionality_confidence", 0.0)
+                item.setdefault("baseline_5_20_result", "N/A")
+                item.setdefault("is_excluded", 0)
+                events.append(item)
+            return events
+
+    def get_utie_by_timerange(
+        self,
+        start_time: Optional[float] = None,
+        end_time: Optional[float] = None,
+        limit: int = 10000,
+    ) -> List[Dict[str, Any]]:
+        """Retrieves UTIE flow records within a specified timestamp window."""
+        sql = "SELECT * FROM utie_flow_intelligence WHERE 1=1"
+        params: List[Any] = []
+
+        if start_time is not None:
+            sql += " AND timestamp >= ?"
+            params.append(start_time)
+        if end_time is not None:
+            sql += " AND timestamp <= ?"
+            params.append(end_time)
+
+        sql += " ORDER BY timestamp DESC LIMIT ?"
+        params.append(limit)
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(sql, params)
+            rows = cursor.fetchall()
+            results = []
+            for row in rows:
+                item = dict(row)
+                try:
+                    item["directionality_evidence"] = json.loads(item["evidence_json"])
+                except Exception:
+                    item["directionality_evidence"] = []
+                try:
+                    item["traffic_behavior_summary"] = json.loads(item["behavior_json"])
+                except Exception:
+                    item["traffic_behavior_summary"] = {}
+                try:
+                    item["suggested_investigation_steps"] = json.loads(item["investigation_json"])
+                except Exception:
+                    item["suggested_investigation_steps"] = []
+                results.append(item)
+            return results

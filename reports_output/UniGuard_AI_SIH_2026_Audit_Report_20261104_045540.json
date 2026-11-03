@@ -1,0 +1,586 @@
+{
+  "metadata": {
+    "report_name": "UniGuard_AI_SIH_2026_Audit_Report",
+    "report_type": "EXECUTIVE",
+    "date_range_label": "All Monitored Time",
+    "start_time": null,
+    "end_time": null,
+    "generated_at": 1793748340.4515204,
+    "generated_at_str": "2026-11-04 04:55:40",
+    "total_events_collected": 20000,
+    "total_utie_flows_collected": 9992
+  },
+  "section_1_executive_summary": {
+    "total_events": 20000,
+    "critical_events": 0,
+    "high_events": 11701,
+    "high_risk_total": 11701,
+    "top_threat": "SLOWLORIS",
+    "average_risk_score": 41.9,
+    "max_risk_score": 76,
+    "overview_text": "During the monitored period (All Monitored Time), UniGuard AI analyzed 20000 events and detected 11701 high-risk occurrences requiring immediate SOC triage. The primary attack vector identified was 'SLOWLORIS', with a maximum risk score of 76/100. A total of 0 critical and 11701 high severity alerts were logged across the sensor grid.",
+    "status": "ELEVATED RISK"
+  },
+  "section_2_traffic_analysis": {
+    "total_packets": 44326,
+    "total_bytes": 4623451,
+    "total_megabytes": 4.41,
+    "average_duration_sec": 7.678,
+    "protocol_distribution": {
+      "TCP": 6756,
+      "UDP": 3230,
+      "ICMP": 6
+    },
+    "top_source_ips": [
+      {
+        "ip": "10.17.93.221",
+        "count": 8175
+      },
+      {
+        "ip": "172.16.0.45",
+        "count": 750
+      },
+      {
+        "ip": "10.17.93.58",
+        "count": 632
+      },
+      {
+        "ip": "10.17.93.28",
+        "count": 262
+      },
+      {
+        "ip": "10.0.0.99",
+        "count": 55
+      }
+    ],
+    "top_dest_ips": [
+      {
+        "ip": "10.17.93.58",
+        "count": 3756
+      },
+      {
+        "ip": "10.17.93.221",
+        "count": 1001
+      },
+      {
+        "ip": "192.168.1.50",
+        "count": 805
+      },
+      {
+        "ip": "103.165.192.203",
+        "count": 468
+      },
+      {
+        "ip": "103.165.192.205",
+        "count": 456
+      }
+    ]
+  },
+  "section_3_utie_intelligence": {
+    "total_tracked_flows": 9992,
+    "unidirectional_flows": 0,
+    "bidirectional_flows": 0,
+    "unknown_flows": 0,
+    "unidirectional_percentage": 0.0,
+    "missing_reverse_handshakes": 6060,
+    "asymmetric_sensor_visibility": 0,
+    "directionality_distribution": {
+      "INSUFFICIENT_DATA": 4817,
+      "UNIDIRECTIONAL_OBSERVED": 3832,
+      "BIDIRECTIONAL_OBSERVED": 1341,
+      "ASYMMETRIC_OBSERVED": 2
+    },
+    "assessment": "Normal flow symmetry observed across monitored interfaces."
+  },
+  "section_4_threat_summary": {
+    "threat_distribution": {
+      "BENIGN": 7800,
+      "SLOWLORIS": 7398,
+      "PORT_SCAN": 4788,
+      "SYN_FLOOD": 13,
+      "DATA_EXFILTRATION": 1
+    },
+    "severity_distribution": {
+      "INFORMATIONAL": 7758,
+      "HIGH": 11701,
+      "LOW": 42,
+      "MEDIUM": 499
+    },
+    "port_scan_count": 0,
+    "ddos_count": 0,
+    "data_exfiltration_count": 0,
+    "c2_count": 0,
+    "benign_count": 7800
+  },
+  "section_5_high_risk_events": [
+    {
+      "event_id": "EVT-1793748284081-02052",
+      "timestamp": 1793748284.0818799,
+      "timestamp_str": "2026-11-04 04:54:44",
+      "src_ip": "10.17.93.28",
+      "dst_ip": "10.17.93.221",
+      "src_port": 0,
+      "dst_port": 0,
+      "proto": 17,
+      "threat_type": "PORT_SCAN",
+      "risk_score": 76,
+      "severity": "HIGH",
+      "confidence_pct": 83.3,
+      "directionality": "UNIDIRECTIONAL_OBSERVED"
+    },
+    {
+      "event_id": "EVT-1793748226891-01977",
+      "timestamp": 1793748226.89157,
+      "timestamp_str": "2026-11-04 04:53:46",
+      "src_ip": "10.17.93.28",
+      "dst_ip": "10.17.93.221",
+      "src_port": 0,
+      "dst_port": 0,
+      "proto": 17,
+      "threat_type": "PORT_SCAN",
+      "risk_score": 76,
+      "severity": "HIGH",
+      "confidence_pct": 83.3,
+      "directionality": "UNIDIRECTIONAL_OBSERVED"
+    },
+    {
+      "event_id": "EVT-1793748173728-01868",
+      "timestamp": 1793748173.7287219,
+      "timestamp_str": "2026-11-04 04:52:53",
+      "src_ip": "10.17.93.28",
+      "dst_ip": "10.17.93.221",
+      "src_port": 0,
+      "dst_port": 0,
+      "proto": 17,
+      "threat_type": "PORT_SCAN",
+      "risk_score": 76,
+      "severity": "HIGH",
+      "confidence_pct": 83.3,
+      "directionality": "UNIDIRECTIONAL_OBSERVED"
+    },
+    {
+      "event_id": "EVT-1793748108141-01790",
+      "timestamp": 1793748108.1410265,
+      "timestamp_str": "2026-11-04 04:51:48",
+      "src_ip": "10.17.93.28",
+      "dst_ip": "10.17.93.221",
+      "src_port": 0,
+      "dst_port": 0,
+      "proto": 17,
+      "threat_type": "PORT_SCAN",
+      "risk_score": 76,
+      "severity": "HIGH",
+      "confidence_pct": 83.3,
+      "directionality": "UNIDIRECTIONAL_OBSERVED"
+    },
+    {
+      "event_id": "EVT-1793748061990-01723",
+      "timestamp": 1793748061.9908772,
+      "timestamp_str": "2026-11-04 04:51:01",
+      "src_ip": "10.17.93.28",
+      "dst_ip": "10.17.93.221",
+      "src_port": 0,
+      "dst_port": 0,
+      "proto": 17,
+      "threat_type": "PORT_SCAN",
+      "risk_score": 76,
+      "severity": "HIGH",
+      "confidence_pct": 83.3,
+      "directionality": "UNIDIRECTIONAL_OBSERVED"
+    },
+    {
+      "event_id": "EVT-1793747991243-01641",
+      "timestamp": 1793747991.243702,
+      "timestamp_str": "2026-11-04 04:49:51",
+      "src_ip": "10.17.93.28",
+      "dst_ip": "10.17.93.221",
+      "src_port": 0,
+      "dst_port": 0,
+      "proto": 17,
+      "threat_type": "PORT_SCAN",
+      "risk_score": 76,
+      "severity": "HIGH",
+      "confidence_pct": 83.3,
+      "directionality": "UNIDIRECTIONAL_OBSERVED"
+    },
+    {
+      "event_id": "EVT-1793747926962-01586",
+      "timestamp": 1793747926.9628973,
+      "timestamp_str": "2026-11-04 04:48:46",
+      "src_ip": "10.17.93.28",
+      "dst_ip": "10.17.93.221",
+      "src_port": 0,
+      "dst_port": 0,
+      "proto": 17,
+      "threat_type": "PORT_SCAN",
+      "risk_score": 76,
+      "severity": "HIGH",
+      "confidence_pct": 83.3,
+      "directionality": "UNIDIRECTIONAL_OBSERVED"
+    },
+    {
+      "event_id": "EVT-1793747850338-01508",
+      "timestamp": 1793747850.3381562,
+      "timestamp_str": "2026-11-04 04:47:30",
+      "src_ip": "10.17.93.28",
+      "dst_ip": "10.17.93.221",
+      "src_port": 0,
+      "dst_port": 0,
+      "proto": 17,
+      "threat_type": "PORT_SCAN",
+      "risk_score": 76,
+      "severity": "HIGH",
+      "confidence_pct": 83.3,
+      "directionality": "UNIDIRECTIONAL_OBSERVED"
+    },
+    {
+      "event_id": "EVT-1793747788638-01427",
+      "timestamp": 1793747788.638845,
+      "timestamp_str": "2026-11-04 04:46:28",
+      "src_ip": "10.17.93.28",
+      "dst_ip": "10.17.93.221",
+      "src_port": 0,
+      "dst_port": 0,
+      "proto": 17,
+      "threat_type": "PORT_SCAN",
+      "risk_score": 76,
+      "severity": "HIGH",
+      "confidence_pct": 83.3,
+      "directionality": "UNIDIRECTIONAL_OBSERVED"
+    },
+    {
+      "event_id": "EVT-1793747732406-01359",
+      "timestamp": 1793747732.4066327,
+      "timestamp_str": "2026-11-04 04:45:32",
+      "src_ip": "10.17.93.28",
+      "dst_ip": "10.17.93.221",
+      "src_port": 0,
+      "dst_port": 0,
+      "proto": 17,
+      "threat_type": "PORT_SCAN",
+      "risk_score": 76,
+      "severity": "HIGH",
+      "confidence_pct": 83.3,
+      "directionality": "UNIDIRECTIONAL_OBSERVED"
+    },
+    {
+      "event_id": "EVT-1793747661821-01261",
+      "timestamp": 1793747661.8219666,
+      "timestamp_str": "2026-11-04 04:44:21",
+      "src_ip": "10.17.93.28",
+      "dst_ip": "10.17.93.221",
+      "src_port": 0,
+      "dst_port": 0,
+      "proto": 17,
+      "threat_type": "PORT_SCAN",
+      "risk_score": 76,
+      "severity": "HIGH",
+      "confidence_pct": 83.3,
+      "directionality": "UNIDIRECTIONAL_OBSERVED"
+    },
+    {
+      "event_id": "EVT-1793747606728-01219",
+      "timestamp": 1793747606.728941,
+      "timestamp_str": "2026-11-04 04:43:26",
+      "src_ip": "10.17.93.28",
+      "dst_ip": "10.17.93.221",
+      "src_port": 0,
+      "dst_port": 0,
+      "proto": 17,
+      "threat_type": "PORT_SCAN",
+      "risk_score": 76,
+      "severity": "HIGH",
+      "confidence_pct": 83.3,
+      "directionality": "UNIDIRECTIONAL_OBSERVED"
+    },
+    {
+      "event_id": "EVT-1793747541826-01150",
+      "timestamp": 1793747541.8260243,
+      "timestamp_str": "2026-11-04 04:42:21",
+      "src_ip": "10.17.93.28",
+      "dst_ip": "10.17.93.221",
+      "src_port": 0,
+      "dst_port": 0,
+      "proto": 17,
+      "threat_type": "PORT_SCAN",
+      "risk_score": 76,
+      "severity": "HIGH",
+      "confidence_pct": 83.3,
+      "directionality": "UNIDIRECTIONAL_OBSERVED"
+    },
+    {
+      "event_id": "EVT-1793747482658-01085",
+      "timestamp": 1793747482.6584885,
+      "timestamp_str": "2026-11-04 04:41:22",
+      "src_ip": "10.17.93.28",
+      "dst_ip": "10.17.93.221",
+      "src_port": 0,
+      "dst_port": 0,
+      "proto": 17,
+      "threat_type": "PORT_SCAN",
+      "risk_score": 76,
+      "severity": "HIGH",
+      "confidence_pct": 83.3,
+      "directionality": "UNIDIRECTIONAL_OBSERVED"
+    },
+    {
+      "event_id": "EVT-1793747421285-01013",
+      "timestamp": 1793747421.2859433,
+      "timestamp_str": "2026-11-04 04:40:21",
+      "src_ip": "10.17.93.28",
+      "dst_ip": "10.17.93.221",
+      "src_port": 0,
+      "dst_port": 0,
+      "proto": 17,
+      "threat_type": "PORT_SCAN",
+      "risk_score": 76,
+      "severity": "HIGH",
+      "confidence_pct": 83.3,
+      "directionality": "UNIDIRECTIONAL_OBSERVED"
+    },
+    {
+      "event_id": "EVT-1793747388857-00965",
+      "timestamp": 1793747388.85721,
+      "timestamp_str": "2026-11-04 04:39:48",
+      "src_ip": "10.17.93.28",
+      "dst_ip": "10.17.93.221",
+      "src_port": 0,
+      "dst_port": 0,
+      "proto": 17,
+      "threat_type": "PORT_SCAN",
+      "risk_score": 76,
+      "severity": "HIGH",
+      "confidence_pct": 83.3,
+      "directionality": "UNIDIRECTIONAL_OBSERVED"
+    },
+    {
+      "event_id": "EVT-1793747364928-00944",
+      "timestamp": 1793747364.928421,
+      "timestamp_str": "2026-11-04 04:39:24",
+      "src_ip": "10.17.93.28",
+      "dst_ip": "10.17.93.221",
+      "src_port": 0,
+      "dst_port": 0,
+      "proto": 17,
+      "threat_type": "PORT_SCAN",
+      "risk_score": 76,
+      "severity": "HIGH",
+      "confidence_pct": 83.3,
+      "directionality": "UNIDIRECTIONAL_OBSERVED"
+    },
+    {
+      "event_id": "EVT-1793747294360-00854",
+      "timestamp": 1793747294.3607864,
+      "timestamp_str": "2026-11-04 04:38:14",
+      "src_ip": "10.17.93.28",
+      "dst_ip": "10.17.93.221",
+      "src_port": 0,
+      "dst_port": 0,
+      "proto": 17,
+      "threat_type": "PORT_SCAN",
+      "risk_score": 76,
+      "severity": "HIGH",
+      "confidence_pct": 83.3,
+      "directionality": "UNIDIRECTIONAL_OBSERVED"
+    },
+    {
+      "event_id": "EVT-1793747234017-00778",
+      "timestamp": 1793747234.0173824,
+      "timestamp_str": "2026-11-04 04:37:14",
+      "src_ip": "10.17.93.28",
+      "dst_ip": "10.17.93.221",
+      "src_port": 0,
+      "dst_port": 0,
+      "proto": 17,
+      "threat_type": "PORT_SCAN",
+      "risk_score": 76,
+      "severity": "HIGH",
+      "confidence_pct": 83.3,
+      "directionality": "UNIDIRECTIONAL_OBSERVED"
+    },
+    {
+      "event_id": "EVT-1793747168192-00699",
+      "timestamp": 1793747168.1929994,
+      "timestamp_str": "2026-11-04 04:36:08",
+      "src_ip": "10.17.93.28",
+      "dst_ip": "10.17.93.221",
+      "src_port": 0,
+      "dst_port": 0,
+      "proto": 17,
+      "threat_type": "PORT_SCAN",
+      "risk_score": 76,
+      "severity": "HIGH",
+      "confidence_pct": 83.3,
+      "directionality": "UNIDIRECTIONAL_OBSERVED"
+    },
+    {
+      "event_id": "EVT-1793747116372-00644",
+      "timestamp": 1793747116.3722556,
+      "timestamp_str": "2026-11-04 04:35:16",
+      "src_ip": "10.17.93.28",
+      "dst_ip": "10.17.93.221",
+      "src_port": 0,
+      "dst_port": 0,
+      "proto": 17,
+      "threat_type": "PORT_SCAN",
+      "risk_score": 76,
+      "severity": "HIGH",
+      "confidence_pct": 83.3,
+      "directionality": "UNIDIRECTIONAL_OBSERVED"
+    },
+    {
+      "event_id": "EVT-1793747096375-00622",
+      "timestamp": 1793747096.3753421,
+      "timestamp_str": "2026-11-04 04:34:56",
+      "src_ip": "10.17.93.28",
+      "dst_ip": "10.17.93.221",
+      "src_port": 0,
+      "dst_port": 0,
+      "proto": 17,
+      "threat_type": "PORT_SCAN",
+      "risk_score": 76,
+      "severity": "HIGH",
+      "confidence_pct": 83.3,
+      "directionality": "UNIDIRECTIONAL_OBSERVED"
+    },
+    {
+      "event_id": "EVT-1793747079320-00615",
+      "timestamp": 1793747079.3207068,
+      "timestamp_str": "2026-11-04 04:34:39",
+      "src_ip": "10.17.93.28",
+      "dst_ip": "10.17.93.221",
+      "src_port": 0,
+      "dst_port": 0,
+      "proto": 17,
+      "threat_type": "PORT_SCAN",
+      "risk_score": 76,
+      "severity": "HIGH",
+      "confidence_pct": 83.3,
+      "directionality": "UNIDIRECTIONAL_OBSERVED"
+    },
+    {
+      "event_id": "EVT-1793747058024-00596",
+      "timestamp": 1793747058.0248573,
+      "timestamp_str": "2026-11-04 04:34:18",
+      "src_ip": "10.17.93.28",
+      "dst_ip": "10.17.93.221",
+      "src_port": 0,
+      "dst_port": 0,
+      "proto": 17,
+      "threat_type": "PORT_SCAN",
+      "risk_score": 76,
+      "severity": "HIGH",
+      "confidence_pct": 83.3,
+      "directionality": "UNIDIRECTIONAL_OBSERVED"
+    },
+    {
+      "event_id": "EVT-1793747027521-00551",
+      "timestamp": 1793747027.5214355,
+      "timestamp_str": "2026-11-04 04:33:47",
+      "src_ip": "10.17.93.28",
+      "dst_ip": "10.17.93.221",
+      "src_port": 0,
+      "dst_port": 0,
+      "proto": 17,
+      "threat_type": "PORT_SCAN",
+      "risk_score": 76,
+      "severity": "HIGH",
+      "confidence_pct": 83.3,
+      "directionality": "UNIDIRECTIONAL_OBSERVED"
+    }
+  ],
+  "section_6_ai_model_analysis": {
+    "active_models": [
+      {
+        "name": "Random Forest Classifier",
+        "status": "OPERATIONAL",
+        "purpose": "Multi-class threat categorization"
+      },
+      {
+        "name": "XGBoost Gradient Booster",
+        "status": "OPERATIONAL",
+        "purpose": "High-speed asymmetric flow classification"
+      },
+      {
+        "name": "Isolation Forest",
+        "status": "OPERATIONAL",
+        "purpose": "Unsupervised zero-day network anomaly detection"
+      },
+      {
+        "name": "Rule-Based Heuristic Engine",
+        "status": "OPERATIONAL",
+        "purpose": "Deterministic boundary & signature verification"
+      }
+    ],
+    "confidence_metrics": {
+      "average_confidence_pct": 75.6,
+      "min_confidence_pct": 25.8,
+      "max_confidence_pct": 99.0
+    },
+    "anomaly_metrics": {
+      "average_anomaly_score": 0.471,
+      "evaluated_samples": 20000
+    }
+  },
+  "section_7_explainability": {
+    "total_explained_events": 2612,
+    "explainability_coverage_pct": 13.1,
+    "primary_behavioral_rules_triggered": [],
+    "primary_contributing_features": [
+      {
+        "factor": "pkt_count",
+        "count": 14600
+      },
+      {
+        "factor": "tcp_ack_cnt",
+        "count": 12143
+      },
+      {
+        "factor": "byte_count",
+        "count": 7763
+      },
+      {
+        "factor": "directionality",
+        "count": 7758
+      },
+      {
+        "factor": "iat_min",
+        "count": 7031
+      }
+    ]
+  },
+  "section_8_risk_analysis": {
+    "low_risk_count": 7800,
+    "medium_risk_count": 7597,
+    "high_risk_count": 4603,
+    "critical_risk_count": 0,
+    "average_risk_score": 41.9,
+    "risk_score_distribution": {
+      "Low (0-39)": 7800,
+      "Medium (40-69)": 7597,
+      "High (70-89)": 4603,
+      "Critical (90-100)": 0
+    }
+  },
+  "section_9_timeline": {
+    "first_event_time": "2026-11-03 19:37:32",
+    "last_event_time": "2026-11-04 04:55:36",
+    "peak_attack_window": "2026-11-04 03:00",
+    "hourly_event_distribution": {
+      "2026-11-04 04:00": 5151,
+      "2026-11-04 03:00": 5503,
+      "2026-11-04 02:00": 3078,
+      "2026-11-04 01:00": 4281,
+      "2026-11-04 00:00": 815,
+      "2026-11-03 19:00": 1172
+    }
+  },
+  "section_10_recommendations": [
+    {
+      "priority": "LOW",
+      "category": "Security Hygiene",
+      "title": "Maintain Continuous Passive Network Monitoring",
+      "action": "No anomalous threats observed. Continue periodic baseline profiling and maintain firmware patches across all network switching hardware."
+    }
+  ]
+}

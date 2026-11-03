@@ -74,6 +74,11 @@ from uniguard.utie import (
     ObservationPoint,
     UTIEIntelligenceReport,
 )
+from uniguard.reports import (
+    SecurityReportBuilder,
+    ReportHistoryManager,
+    ReportWorkerThread,
+)
 
 try:
     from PySide6.QtWebEngineWidgets import QWebEngineView
@@ -599,6 +604,9 @@ class UniGuardDesktopApp(QMainWindow):
 
         self.worker: Optional[MonitoringWorker] = None
         self.database = SecurityDatabase()
+        self.report_manager = ReportHistoryManager(self.database)
+        self.report_worker: Optional[ReportWorkerThread] = None
+        self.current_preview_file: Optional[str] = None
         self.selected_event: Optional[SecurityEvent] = None
         self.custom_pcap_path: Optional[str] = None
 
@@ -760,6 +768,7 @@ class UniGuardDesktopApp(QMainWindow):
         self.tab_event_history = QWidget()
         self.tab_settings = QWidget()
         self.tab_utie = QWidget()
+        self.tab_reports = QWidget()
 
         self.setup_overview_tab()
         self.setup_live_monitor_tab()
@@ -770,6 +779,7 @@ class UniGuardDesktopApp(QMainWindow):
         self.setup_event_history_tab()
         self.setup_settings_tab()
         self.setup_utie_tab()
+        self.setup_reports_tab()
 
         self.tabs.addTab(self.tab_overview, "1. SECURITY OVERVIEW")
         self.tabs.addTab(self.tab_live_monitor, "2. LIVE MONITORING")
@@ -780,6 +790,7 @@ class UniGuardDesktopApp(QMainWindow):
         self.tabs.addTab(self.tab_event_history, "7. EVENT HISTORY")
         self.tabs.addTab(self.tab_settings, "8. SETTINGS")
         self.tabs.addTab(self.tab_utie, "9. UNIDIRECTIONAL INTELLIGENCE")
+        self.tabs.addTab(self.tab_reports, "10. SECURITY REPORTS")
 
         if WEBENGINE_AVAILABLE:
             self.tabs.setCurrentIndex(0)
@@ -2158,6 +2169,460 @@ Composite Risk Score: {report.risk_score if report.risk_score is not None else 0
         self.save_and_apply_settings()
 
     # =========================================================================
+    # MODULE 10: SECURITY REPORT GENERATOR (SIH 2026)
+    # =========================================================================
+    def setup_reports_tab(self) -> None:
+        layout = QVBoxLayout(self.tab_reports)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(10)
+
+        # 1. Overview KPI Cards Bar
+        kpi_row = QHBoxLayout()
+        self.card_rpt_total = self.create_kpi_card("TOTAL REPORTS", "0", "#00e5ff", "Cumulative reports generated")
+        self.card_rpt_last = self.create_kpi_card("LAST GENERATED", "Never", "#10b981", "Timestamp of most recent audit")
+        self.card_rpt_events = self.create_kpi_card("ANALYZED EVENTS", "0", "#38bdf8", "Security events in database repository")
+        self.card_rpt_high_risk = self.create_kpi_card("HIGH-RISK DETECTIONS", "0", "#ef4444", "Urgent incidents requiring triage")
+
+        kpi_row.addWidget(self.card_rpt_total)
+        kpi_row.addWidget(self.card_rpt_last)
+        kpi_row.addWidget(self.card_rpt_events)
+        kpi_row.addWidget(self.card_rpt_high_risk)
+        layout.addLayout(kpi_row)
+
+        # 2. Generate New Report Configuration Panel
+        config_box = QGroupBox("GENERATE NEW SECURITY AUDIT REPORT")
+        config_box.setStyleSheet("QGroupBox { font-weight: bold; color: #00e5ff; border: 1px solid #1c2333; border-radius: 6px; margin-top: 6px; padding-top: 10px; }")
+        config_layout = QVBoxLayout(config_box)
+
+        form_grid = QGridLayout()
+        form_grid.setSpacing(8)
+
+        # Row 0: Report Name & Report Type
+        form_grid.addWidget(QLabel("Report Name:"), 0, 0)
+        self.txt_rpt_name = QLineEdit("UniGuard AI Security Audit Report")
+        self.txt_rpt_name.setStyleSheet("background-color: #0f141c; color: #c9d1d9; border: 1px solid #2d3748; padding: 4px 8px; border-radius: 4px;")
+        form_grid.addWidget(self.txt_rpt_name, 0, 1)
+
+        form_grid.addWidget(QLabel("Report Type:"), 0, 2)
+        self.combo_rpt_type = QComboBox()
+        self.combo_rpt_type.addItems([
+            "EXECUTIVE - High-Level Leadership Summary",
+            "COMPREHENSIVE - Full SOC Incident & Threat Audit",
+            "UNIDIRECTIONAL - Deep UTIE & Flow Intelligence Report",
+            "COMPLIANCE - Regulatory & Forensic Verification",
+        ])
+        form_grid.addWidget(self.combo_rpt_type, 0, 3)
+
+        # Row 1: Date Range & Export Format
+        form_grid.addWidget(QLabel("Date Range:"), 1, 0)
+        self.combo_rpt_range = QComboBox()
+        self.combo_rpt_range.addItems([
+            "Last 24 Hours",
+            "Today (Since Midnight)",
+            "Last 7 Days",
+            "Last 30 Days",
+            "All Monitored Time",
+        ])
+        form_grid.addWidget(self.combo_rpt_range, 1, 1)
+
+        form_grid.addWidget(QLabel("Export Format:"), 1, 2)
+        self.combo_rpt_format = QComboBox()
+        self.combo_rpt_format.addItems([
+            "PDF Document (*.pdf)",
+            "CSV Spreadsheet (*.csv)",
+            "JSON Forensic Schema (*.json)",
+            "ALL Formats (PDF + CSV + JSON)",
+        ])
+        form_grid.addWidget(self.combo_rpt_format, 1, 3)
+
+        config_layout.addLayout(form_grid)
+
+        # Generate Action Row with Progress
+        btn_row = QHBoxLayout()
+        self.btn_generate_rpt = QPushButton("🚀 GENERATE SECURITY REPORT")
+        self.btn_generate_rpt.setFixedHeight(34)
+        self.btn_generate_rpt.setStyleSheet(
+            "background-color: #0284c7; color: #ffffff; font-weight: bold; "
+            "padding: 6px 18px; border-radius: 5px; border: none;"
+        )
+        self.btn_generate_rpt.clicked.connect(self.on_generate_report_clicked)
+        btn_row.addWidget(self.btn_generate_rpt)
+
+        self.rpt_progress = QProgressBar()
+        self.rpt_progress.setRange(0, 100)
+        self.rpt_progress.setValue(0)
+        self.rpt_progress.setTextVisible(True)
+        self.rpt_progress.setFixedHeight(22)
+        self.rpt_progress.setStyleSheet(
+            "QProgressBar { background-color: #0f141c; border: 1px solid #2d3748; border-radius: 4px; text-align: center; color: #ffffff; }"
+            "QProgressBar::chunk { background-color: #0284c7; border-radius: 3px; }"
+        )
+        btn_row.addWidget(self.rpt_progress, stretch=1)
+
+        self.lbl_rpt_status = QLabel("Ready to compile cybersecurity report.")
+        self.lbl_rpt_status.setStyleSheet("color: #8b949e; font-size: 8.5pt;")
+        btn_row.addWidget(self.lbl_rpt_status)
+
+        config_layout.addLayout(btn_row)
+        layout.addWidget(config_box)
+
+        # 3. Main Splitter: Interactive Preview (Left/Top) vs Report History (Right/Bottom)
+        splitter = QSplitter(Qt.Horizontal)
+
+        # Left: Interactive Report Preview
+        preview_panel = QFrame()
+        preview_panel.setStyleSheet("background-color: #0b0f17; border: 1px solid #1c2333; border-radius: 6px;")
+        prev_layout = QVBoxLayout(preview_panel)
+        prev_layout.setContentsMargins(10, 10, 10, 10)
+        prev_layout.setSpacing(6)
+
+        prev_header = QHBoxLayout()
+        self.lbl_preview_title = QLabel("INTERACTIVE REPORT PREVIEW")
+        self.lbl_preview_title.setStyleSheet("font-weight: bold; color: #00e5ff; font-size: 9.5pt;")
+        prev_header.addWidget(self.lbl_preview_title)
+        prev_header.addStretch()
+
+        self.lbl_preview_badge = QLabel("IDLE")
+        self.lbl_preview_badge.setStyleSheet("background-color: #1e293b; color: #94a3b8; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 8pt;")
+        prev_header.addWidget(self.lbl_preview_badge)
+        prev_layout.addLayout(prev_header)
+
+        self.lbl_preview_metrics = QLabel("Total Events: 0  |  High-Risk: 0  |  Primary Threat: None  |  Max Risk: 0/100")
+        self.lbl_preview_metrics.setStyleSheet("color: #38bdf8; font-size: 8.5pt; font-weight: 600; padding: 3px 0px;")
+        prev_layout.addWidget(self.lbl_preview_metrics)
+
+        prev_layout.addWidget(QLabel("<b>Executive Summary & Risk Assessment:</b>"))
+        self.txt_preview_summary = QTextEdit()
+        self.txt_preview_summary.setReadOnly(True)
+        self.txt_preview_summary.setFixedHeight(75)
+        self.txt_preview_summary.setStyleSheet("background-color: #0f141c; color: #c9d1d9; border: 1px solid #2d3748; border-radius: 4px; font-size: 8.5pt;")
+        prev_layout.addWidget(self.txt_preview_summary)
+
+        prev_layout.addWidget(QLabel("<b>High-Risk Security Events Preview:</b>"))
+        self.table_preview_events = QTableWidget()
+        self.table_preview_events.setColumnCount(6)
+        self.table_preview_events.setHorizontalHeaderLabels([
+            "Event ID", "Source IP:Port", "Dest IP:Port", "Threat Type", "Risk", "Severity"
+        ])
+        self.table_preview_events.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table_preview_events.setStyleSheet("background-color: #0f141c; gridline-color: #1c2333; font-size: 8pt;")
+        prev_layout.addWidget(self.table_preview_events, stretch=1)
+
+        # File actions row
+        prev_actions = QHBoxLayout()
+        self.btn_open_rpt_file = QPushButton("📄 Open Report File")
+        self.btn_open_rpt_file.setEnabled(False)
+        self.btn_open_rpt_file.setStyleSheet("background-color: #1e293b; color: #00e5ff; border: 1px solid #334155; padding: 5px 12px; border-radius: 4px; font-weight: 600;")
+        self.btn_open_rpt_file.clicked.connect(self.open_current_report_file)
+
+        self.btn_open_rpt_folder = QPushButton("📁 Open Containing Folder")
+        self.btn_open_rpt_folder.setEnabled(False)
+        self.btn_open_rpt_folder.setStyleSheet("background-color: #1e293b; color: #10b981; border: 1px solid #334155; padding: 5px 12px; border-radius: 4px; font-weight: 600;")
+        self.btn_open_rpt_folder.clicked.connect(self.open_current_report_folder)
+
+        prev_actions.addWidget(self.btn_open_rpt_file)
+        prev_actions.addWidget(self.btn_open_rpt_folder)
+        prev_actions.addStretch()
+        prev_layout.addLayout(prev_actions)
+
+        splitter.addWidget(preview_panel)
+
+        # Right: Report History & Repository
+        history_panel = QFrame()
+        history_panel.setStyleSheet("background-color: #0b0f17; border: 1px solid #1c2333; border-radius: 6px;")
+        hist_layout = QVBoxLayout(history_panel)
+        hist_layout.setContentsMargins(10, 10, 10, 10)
+        hist_layout.setSpacing(6)
+
+        hist_header = QHBoxLayout()
+        lbl_hist_title = QLabel("REPORT REPOSITORY & AUDIT HISTORY")
+        lbl_hist_title.setStyleSheet("font-weight: bold; color: #00e5ff; font-size: 9.5pt;")
+        hist_header.addWidget(lbl_hist_title)
+        hist_header.addStretch()
+
+        self.btn_refresh_history = QPushButton("🔄 Refresh")
+        self.btn_refresh_history.setStyleSheet("background-color: #1e293b; color: #c9d1d9; border: 1px solid #334155; padding: 3px 8px; border-radius: 4px;")
+        self.btn_refresh_history.clicked.connect(self.refresh_reports_tab)
+        hist_header.addWidget(self.btn_refresh_history)
+
+        self.btn_delete_report = QPushButton("🗑️ Delete")
+        self.btn_delete_report.setStyleSheet("background-color: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); padding: 3px 8px; border-radius: 4px;")
+        self.btn_delete_report.clicked.connect(self.delete_selected_report)
+        hist_header.addWidget(self.btn_delete_report)
+
+        hist_layout.addLayout(hist_header)
+
+        self.table_rpt_history = QTableWidget()
+        self.table_rpt_history.setColumnCount(8)
+        self.table_rpt_history.setHorizontalHeaderLabels([
+            "Report ID", "Name", "Type", "Range", "Format", "Created At", "Events", "High Risk"
+        ])
+        self.table_rpt_history.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.table_rpt_history.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self.table_rpt_history.setStyleSheet("background-color: #0f141c; gridline-color: #1c2333; font-size: 8pt;")
+        self.table_rpt_history.setSelectionBehavior(QTableWidget.SelectRows)
+        self.table_rpt_history.setSelectionMode(QTableWidget.SingleSelection)
+        self.table_rpt_history.cellClicked.connect(self.on_report_history_row_clicked)
+        self.table_rpt_history.cellDoubleClicked.connect(lambda r, c: self.open_current_report_file())
+        hist_layout.addWidget(self.table_rpt_history, stretch=1)
+
+        splitter.addWidget(history_panel)
+        splitter.setSizes([550, 650])
+        layout.addWidget(splitter, stretch=1)
+
+        # Initial refresh
+        self.refresh_reports_tab()
+
+    def refresh_reports_tab(self) -> None:
+        """Refreshes report KPI cards and reloads report history table from SQLite."""
+        try:
+            kpi = self.report_manager.get_kpi_summary()
+            if hasattr(self, "card_rpt_total") and hasattr(self.card_rpt_total, "value_label"):
+                self.card_rpt_total.value_label.setText(str(kpi.get("total_reports", 0)))
+            if hasattr(self, "card_rpt_last") and hasattr(self.card_rpt_last, "value_label"):
+                last_ts = kpi.get("last_generated_ts")
+                if last_ts:
+                    last_str = time.strftime("%Y-%m-%d %H:%M", time.localtime(last_ts))
+                else:
+                    last_str = "Never"
+                self.card_rpt_last.value_label.setText(last_str)
+            if hasattr(self, "card_rpt_events") and hasattr(self.card_rpt_events, "value_label"):
+                self.card_rpt_events.value_label.setText(str(kpi.get("total_analyzed_events", 0)))
+            if hasattr(self, "card_rpt_high_risk") and hasattr(self.card_rpt_high_risk, "value_label"):
+                self.card_rpt_high_risk.value_label.setText(str(kpi.get("total_high_risk_events", 0)))
+
+            # Populate history table
+            history = self.report_manager.get_history(limit=50)
+            self.table_rpt_history.setRowCount(0)
+            for i, rpt in enumerate(history):
+                self.table_rpt_history.insertRow(i)
+                self.table_rpt_history.setItem(i, 0, QTableWidgetItem(str(rpt.get("report_id", ""))))
+                self.table_rpt_history.setItem(i, 1, QTableWidgetItem(str(rpt.get("report_name", ""))))
+                self.table_rpt_history.setItem(i, 2, QTableWidgetItem(str(rpt.get("report_type", ""))))
+                self.table_rpt_history.setItem(i, 3, QTableWidgetItem(str(rpt.get("date_range", ""))))
+                self.table_rpt_history.setItem(i, 4, QTableWidgetItem(str(rpt.get("export_format", ""))))
+                ts = rpt.get("timestamp", 0)
+                ts_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ts)) if ts else "N/A"
+                self.table_rpt_history.setItem(i, 5, QTableWidgetItem(ts_str))
+                self.table_rpt_history.setItem(i, 6, QTableWidgetItem(str(rpt.get("total_events", 0))))
+                self.table_rpt_history.setItem(i, 7, QTableWidgetItem(str(rpt.get("high_risk_events", 0))))
+
+                # Store file_path in row item data
+                item_id = self.table_rpt_history.item(i, 0)
+                if item_id:
+                    item_id.setData(Qt.UserRole, rpt.get("file_path", ""))
+        except Exception:
+            pass
+
+    def on_generate_report_clicked(self) -> None:
+        """Spawns non-blocking worker thread to compile the security report."""
+        # Prevent overlapping generation runs
+        if self.report_worker and self.report_worker.isRunning():
+            QMessageBox.information(self, "Report in Progress", "A report is currently being compiled. Please wait.")
+            return
+
+        report_name = self.txt_rpt_name.text().strip() or "UniGuard AI Security Report"
+        report_type = self.combo_rpt_type.currentText().split(" - ")[0].strip()
+
+        range_text = self.combo_rpt_range.currentText()
+        if "Today" in range_text:
+            range_code = "TODAY"
+        elif "24 Hours" in range_text:
+            range_code = "LAST_24_HOURS"
+        elif "7 Days" in range_text:
+            range_code = "LAST_7_DAYS"
+        elif "30 Days" in range_text:
+            range_code = "LAST_30_DAYS"
+        elif "All" in range_text:
+            range_code = "ALL"
+        else:
+            range_code = "LAST_24_HOURS"
+
+        format_text = self.combo_rpt_format.currentText()
+        if "PDF" in format_text and "ALL" not in format_text:
+            export_format = "PDF"
+        elif "CSV" in format_text and "ALL" not in format_text:
+            export_format = "CSV"
+        elif "JSON" in format_text and "ALL" not in format_text:
+            export_format = "JSON"
+        else:
+            export_format = "ALL"
+
+        self.btn_generate_rpt.setEnabled(False)
+        self.rpt_progress.setValue(5)
+        self.lbl_rpt_status.setText("Initializing report compiler...")
+
+        self.report_worker = ReportWorkerThread(
+            report_name=report_name,
+            report_type=report_type,
+            date_range_code=range_code,
+            export_format=export_format,
+            parent=self,
+        )
+        self.report_worker.progress_updated.connect(self.on_report_progress)
+        self.report_worker.report_finished.connect(self.on_report_finished)
+        self.report_worker.report_failed.connect(self.on_report_failed)
+        self.report_worker.start()
+
+    def on_report_progress(self, pct: int, msg: str) -> None:
+        """Updates progress bar and operational status message."""
+        self.rpt_progress.setValue(pct)
+        self.lbl_rpt_status.setText(msg)
+
+    def on_report_finished(self, result: Dict[str, Any]) -> None:
+        """Handles successful report completion and loads interactive preview."""
+        self.btn_generate_rpt.setEnabled(True)
+        self.rpt_progress.setValue(100)
+        self.lbl_rpt_status.setText("Report successfully generated!")
+        self.lbl_rpt_status.setStyleSheet("color: #10b981; font-size: 8.5pt;")
+
+        # Update preview
+        report_data = result.get("report_data", {})
+        self.populate_report_preview(report_data, result.get("primary_file_path", ""))
+
+        # Refresh history
+        self.refresh_reports_tab()
+
+    def on_report_failed(self, error_msg: str) -> None:
+        """Handles report generation failure gracefully."""
+        self.btn_generate_rpt.setEnabled(True)
+        self.rpt_progress.setValue(0)
+        self.lbl_rpt_status.setText("Report generation failed.")
+        self.lbl_rpt_status.setStyleSheet("color: #ef4444; font-size: 8.5pt;")
+        QMessageBox.critical(self, "Report Generation Error", f"Failed to build security report:\n{error_msg}")
+
+    def populate_report_preview(self, report_data: Dict[str, Any], file_path: str = "") -> None:
+        """Populates interactive preview panel with generated report metrics."""
+        self.current_preview_file = file_path
+        if file_path:
+            self.btn_open_rpt_file.setEnabled(True)
+            self.btn_open_rpt_folder.setEnabled(True)
+
+        meta = report_data.get("metadata", {})
+        exec_sum = report_data.get("section_1_executive_summary", {})
+        high_risk = report_data.get("section_5_high_risk_events", [])
+
+        self.lbl_preview_title.setText(f"REPORT: {meta.get('report_name', 'Security Audit')}")
+
+        status = exec_sum.get("status", "SECURE")
+        if status == "ELEVATED RISK":
+            self.lbl_preview_badge.setText("ELEVATED RISK")
+            self.lbl_preview_badge.setStyleSheet("background-color: rgba(239, 68, 68, 0.2); color: #ef4444; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 8pt;")
+        else:
+            self.lbl_preview_badge.setText("SECURE")
+            self.lbl_preview_badge.setStyleSheet("background-color: rgba(16, 185, 129, 0.2); color: #10b981; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 8pt;")
+
+        self.lbl_preview_metrics.setText(
+            f"Total Events: {exec_sum.get('total_events', 0)}  |  "
+            f"High Risk: {exec_sum.get('high_risk_total', 0)}  |  "
+            f"Primary Threat: {exec_sum.get('top_threat', 'None')}  |  "
+            f"Max Risk: {exec_sum.get('max_risk_score', 0)}/100"
+        )
+
+        self.txt_preview_summary.setText(exec_sum.get("overview_text", "No overview narrative available."))
+
+        # High risk table
+        self.table_preview_events.setRowCount(0)
+        for i, ev in enumerate(high_risk[:15]):
+            self.table_preview_events.insertRow(i)
+            self.table_preview_events.setItem(i, 0, QTableWidgetItem(str(ev.get("event_id", ""))[:12]))
+            self.table_preview_events.setItem(i, 1, QTableWidgetItem(f"{ev.get('src_ip')}:{ev.get('src_port')}"))
+            self.table_preview_events.setItem(i, 2, QTableWidgetItem(f"{ev.get('dst_ip')}:{ev.get('dst_port')}"))
+            self.table_preview_events.setItem(i, 3, QTableWidgetItem(str(ev.get("threat_type", ""))))
+            self.table_preview_events.setItem(i, 4, QTableWidgetItem(str(ev.get("risk_score", 0))))
+
+            sev_val = str(ev.get("severity", ""))
+            sev_item = QTableWidgetItem(sev_val)
+            if sev_val == "CRITICAL":
+                sev_item.setForeground(QColor("#ef4444"))
+            elif sev_val == "HIGH":
+                sev_item.setForeground(QColor("#f97316"))
+            elif sev_val == "MEDIUM":
+                sev_item.setForeground(QColor("#eab308"))
+            else:
+                sev_item.setForeground(QColor("#10b981"))
+            self.table_preview_events.setItem(i, 5, sev_item)
+
+    def on_report_history_row_clicked(self, row: int, col: int) -> None:
+        """Loads selected historical report details into preview."""
+        item_id = self.table_rpt_history.item(row, 0)
+        if not item_id:
+            return
+        report_id = item_id.text()
+        file_path = item_id.data(Qt.UserRole)
+        self.current_preview_file = file_path
+
+        report = self.database.get_report_by_id(report_id)
+        if report:
+            self.lbl_preview_title.setText(f"REPORT: {report.get('report_name')}")
+            high_risk_cnt = report.get("high_risk_events", 0)
+            status_text = "ELEVATED RISK" if high_risk_cnt > 0 else "SECURE"
+            self.lbl_preview_badge.setText(status_text)
+            self.lbl_preview_badge.setStyleSheet(
+                "background-color: rgba(239, 68, 68, 0.2); color: #ef4444; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 8pt;"
+                if high_risk_cnt > 0 else
+                "background-color: rgba(16, 185, 129, 0.2); color: #10b981; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 8pt;"
+            )
+            self.lbl_preview_metrics.setText(
+                f"Total Events: {report.get('total_events', 0)}  |  "
+                f"High Risk: {report.get('high_risk_events', 0)}  |  "
+                f"Format: {report.get('export_format', '')}  |  "
+                f"Range: {report.get('date_range', '')}"
+            )
+            self.txt_preview_summary.setText(report.get("summary_text", ""))
+
+        if file_path and os.path.exists(file_path):
+            self.btn_open_rpt_file.setEnabled(True)
+            self.btn_open_rpt_folder.setEnabled(True)
+        else:
+            self.btn_open_rpt_file.setEnabled(False)
+            self.btn_open_rpt_folder.setEnabled(False)
+
+    def open_current_report_file(self) -> None:
+        """Launches the report file in the operating system's default viewer."""
+        if self.current_preview_file:
+            success = self.report_manager.open_file(self.current_preview_file)
+            if not success:
+                QMessageBox.warning(self, "File Not Found", f"Cannot open report file:\n{self.current_preview_file}")
+
+    def open_current_report_folder(self) -> None:
+        """Opens the directory containing the current report."""
+        if self.current_preview_file:
+            success = self.report_manager.open_folder(self.current_preview_file)
+            if not success:
+                QMessageBox.warning(self, "Folder Not Found", f"Cannot open folder for:\n{self.current_preview_file}")
+
+    def delete_selected_report(self) -> None:
+        """Deletes the highlighted report from database history."""
+        curr_row = self.table_rpt_history.currentRow()
+        if curr_row < 0:
+            QMessageBox.information(self, "No Selection", "Please select a report row to delete.")
+            return
+
+        item_id = self.table_rpt_history.item(curr_row, 0)
+        item_name = self.table_rpt_history.item(curr_row, 1)
+        if not item_id:
+            return
+
+        report_id = item_id.text()
+        report_name = item_name.text() if item_name else report_id
+
+        reply = QMessageBox.question(
+            self,
+            "Confirm Deletion",
+            f"Are you sure you want to delete report '{report_name}' ({report_id}) from history?\n"
+            "This will remove the database log entry.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply == QMessageBox.Yes:
+            self.report_manager.delete_report(report_id, delete_file=False)
+            self.refresh_reports_tab()
+            self.current_preview_file = None
+            self.btn_open_rpt_file.setEnabled(False)
+            self.btn_open_rpt_folder.setEnabled(False)
+
+    # =========================================================================
     # WORKER / MONITORING CONTROLS
     # =========================================================================
     def browse_pcap(self) -> None:
@@ -2867,6 +3332,8 @@ Composite Risk Score: {report.risk_score if report.risk_score is not None else 0
             self.load_historical_events()
         elif current_widget == self.tab_model_status:
             self.refresh_model_status_display()
+        elif hasattr(self, "tab_reports") and current_widget == self.tab_reports:
+            self.refresh_reports_tab()
 
     def load_historical_events(self) -> None:
         """Loads events from SQLite database into Event History table."""
@@ -2924,6 +3391,15 @@ Composite Risk Score: {report.risk_score if report.risk_score is not None else 0
     def closeEvent(self, event) -> None:
         # 1. Safely stop monitoring worker thread before window is destroyed
         self.stop_monitoring()
+
+        # 1b. Safely cancel and join report worker thread if running
+        if hasattr(self, "report_worker") and self.report_worker and self.report_worker.isRunning():
+            try:
+                self.report_worker.cancel()
+                self.report_worker.quit()
+                self.report_worker.wait(2000)
+            except Exception:
+                pass
 
         # 2. Terminate background local SOC web server
         if hasattr(self, "soc_server") and self.soc_server:
