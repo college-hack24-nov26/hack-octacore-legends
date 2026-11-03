@@ -786,6 +786,8 @@ class UniGuardDesktopApp(QMainWindow):
         else:
             self.tabs.setCurrentWidget(self.tab_overview)
 
+        self.tabs.currentChanged.connect(self.on_tab_changed)
+
         main_layout.addWidget(self.tabs, stretch=1)
 
         # 4. Global System Health Footer Bar
@@ -1517,9 +1519,23 @@ class UniGuardDesktopApp(QMainWindow):
         btn_filter_history.clicked.connect(self.load_historical_events)
         f_layout.addWidget(btn_filter_history)
 
+        btn_refresh_history = QPushButton("↻ Refresh")
+        btn_refresh_history.clicked.connect(self.load_historical_events)
+        f_layout.addWidget(btn_refresh_history)
+
         btn_export_history = QPushButton("Export to CSV")
         btn_export_history.clicked.connect(self.export_historical_events_csv)
         f_layout.addWidget(btn_export_history)
+
+        self.lbl_history_status = QLabel("0 events loaded")
+        self.lbl_history_status.setStyleSheet("color: #8b949e; font-size: 8.5pt; margin-left: 6px;")
+        f_layout.addWidget(self.lbl_history_status)
+
+        # Real-time search and filter responsiveness
+        self.txt_history_search.textChanged.connect(self.load_historical_events)
+        self.combo_history_sev.currentIndexChanged.connect(self.load_historical_events)
+        self.combo_history_threat.currentIndexChanged.connect(self.load_historical_events)
+        self.spin_history_limit.valueChanged.connect(self.load_historical_events)
 
         layout.addWidget(filter_box)
 
@@ -1548,14 +1564,23 @@ class UniGuardDesktopApp(QMainWindow):
         item = self.table_history.item(row, 0)
         if hasattr(item, "history_data"):
             data = item.history_data
+            ts_val = data.get("timestamp", 0) or 0
             lines = [
-                f"EVENT ID: {data.get('event_id')}  |  FLOW: {data.get('flow_key')}  |  TIMESTAMP: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(data.get('timestamp', 0)))}",
+                f"EVENT ID: {data.get('event_id')}  |  FLOW: {data.get('flow_key')}  |  TIMESTAMP: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(ts_val))}",
                 f"SOURCE: {data.get('src_ip')}:{data.get('src_port')}  ->  DESTINATION: {data.get('dst_ip')}:{data.get('dst_port')} [Protocol: {data.get('proto')}]",
                 f"CLASSIFICATION: {data.get('threat_type')}  |  SEVERITY: {data.get('severity')}  |  RISK: {data.get('risk_score')}/100  |  CONFIDENCE: {data.get('confidence_pct', 0):.1f}%",
                 f"DIRECTIONALITY: {data.get('directionality_state')} (Score: {data.get('directionality_score', 0):.3f})  |  EXCLUDED: {'YES' if data.get('is_excluded') else 'NO'}",
                 "-" * 80,
                 f"FLOW METRICS: {data.get('flow_metrics', {})}",
             ]
+            expl = data.get("explanation")
+            if expl and isinstance(expl, dict) and expl.get("summary"):
+                lines.extend([
+                    "-" * 80,
+                    f"AI THREAT EXPLANATION: {expl.get('summary')}",
+                ])
+                if expl.get("observed_behavior"):
+                    lines.append("OBSERVED BEHAVIOR: " + " | ".join(expl["observed_behavior"][:2]))
             self.txt_history_details.setText("\n".join(lines))
 
     def export_historical_events_csv(self) -> None:
@@ -2835,15 +2860,27 @@ Composite Risk Score: {report.risk_score if report.risk_score is not None else 0
         ]
         self.txt_top_proto.setText("\n".join(proto_lines))
 
+    def on_tab_changed(self, index: int) -> None:
+        """Handles tab switching events to refresh live data for the active view."""
+        current_widget = self.tabs.widget(index)
+        if current_widget == self.tab_event_history:
+            self.load_historical_events()
+        elif current_widget == self.tab_model_status:
+            self.refresh_model_status_display()
+
     def load_historical_events(self) -> None:
         """Loads events from SQLite database into Event History table."""
         try:
             q = getattr(self, "txt_history_search", None)
             query = q.text().strip() if q else ""
             sev_box = getattr(self, "combo_history_sev", None)
-            sev = sev_box.currentText() if sev_box else "All Severities"
+            raw_sev = sev_box.currentText() if sev_box else "All Severities"
+            sev = "ALL" if "ALL" in raw_sev.upper() else raw_sev
+
             threat_box = getattr(self, "combo_history_threat", None)
-            threat = threat_box.currentText() if threat_box else "All Threat Types"
+            raw_threat = threat_box.currentText() if threat_box else "All Threat Types"
+            threat = "ALL" if "ALL" in raw_threat.upper() else raw_threat
+
             lim_spin = getattr(self, "spin_history_limit", None)
             limit = lim_spin.value() if lim_spin else 200
 
@@ -2851,22 +2888,28 @@ Composite Risk Score: {report.risk_score if report.risk_score is not None else 0
             self.table_history.setRowCount(0)
             for i, ev in enumerate(events):
                 self.table_history.insertRow(i)
-                self.table_history.setItem(i, 0, QTableWidgetItem(ev.get("event_id", "")))
-                self.table_history.setItem(i, 1, QTableWidgetItem(str(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ev.get("timestamp", 0))))))
+                self.table_history.setItem(i, 0, QTableWidgetItem(str(ev.get("event_id", ""))))
+                ts_val = ev.get("timestamp", 0) or 0
+                self.table_history.setItem(i, 1, QTableWidgetItem(str(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ts_val)))))
                 self.table_history.setItem(i, 2, QTableWidgetItem(f"{ev.get('src_ip')}:{ev.get('src_port')}"))
                 self.table_history.setItem(i, 3, QTableWidgetItem(f"{ev.get('dst_ip')}:{ev.get('dst_port')}"))
                 self.table_history.setItem(i, 4, QTableWidgetItem(str(ev.get("directionality_state", "UNKNOWN"))))
-                self.table_history.setItem(i, 5, QTableWidgetItem(ev.get("threat_type", "")))
+                self.table_history.setItem(i, 5, QTableWidgetItem(str(ev.get("threat_type", ""))))
 
-                sev_item = QTableWidgetItem(ev.get("severity", ""))
-                sev_val = ev.get("severity", "")
+                sev_val = str(ev.get("severity", ""))
+                sev_item = QTableWidgetItem(sev_val)
                 sev_item.setForeground(QColor("#ef4444" if sev_val == "CRITICAL" else "#f97316" if sev_val == "HIGH" else "#eab308" if sev_val == "MEDIUM" else "#10b981"))
                 self.table_history.setItem(i, 6, sev_item)
                 self.table_history.setItem(i, 7, QTableWidgetItem(str(ev.get("risk_score", 0))))
 
-                self.table_history.item(i, 0).history_data = ev
-        except Exception:
-            pass
+                item_0 = self.table_history.item(i, 0)
+                if item_0:
+                    item_0.history_data = ev
+
+            if hasattr(self, "lbl_history_status"):
+                self.lbl_history_status.setText(f"Showing {len(events)} events from database")
+        except Exception as e:
+            logger.warning(f"Error loading historical events: {e}")
 
     @Slot()
     def on_monitoring_finished(self) -> None:

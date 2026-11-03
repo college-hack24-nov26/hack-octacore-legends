@@ -227,13 +227,15 @@ class SecurityDatabase:
         sql = "SELECT * FROM security_events WHERE risk_score >= ?"
         params: List[Any] = [min_risk]
 
-        if severity and severity.upper() != "ALL":
-            sql += " AND severity = ?"
-            params.append(severity.upper())
+        sev_clean = (severity or "").strip().upper()
+        if sev_clean and sev_clean not in ("ALL", "ALL SEVERITIES", "ALL_SEVERITIES", "*"):
+            sql += " AND UPPER(severity) = ?"
+            params.append(sev_clean)
 
-        if threat_type and threat_type.upper() != "ALL":
-            sql += " AND threat_type = ?"
-            params.append(threat_type.upper())
+        threat_clean = (threat_type or "").strip().upper()
+        if threat_clean and threat_clean not in ("ALL", "ALL THREAT TYPES", "ALL_THREAT_TYPES", "ALL THREAT CLASSES", "*"):
+            sql += " AND UPPER(threat_type) = ?"
+            params.append(threat_clean)
 
         if query:
             clean_q = f"%{query.strip()}%"
@@ -385,9 +387,10 @@ class SecurityDatabase:
         """Retrieves recent UTIE flow intelligence reports with optional directionality filter."""
         sql = "SELECT * FROM utie_flow_intelligence"
         params: List[Any] = []
-        if directionality and directionality.upper() != "ALL":
-            sql += " WHERE directionality = ?"
-            params.append(directionality.upper())
+        dir_clean = (directionality or "").strip().upper()
+        if dir_clean and dir_clean not in ("ALL", "ALL DIRECTIONALITIES", "ALL_DIRECTIONALITIES", "*"):
+            sql += " WHERE UPPER(directionality) = ?"
+            params.append(dir_clean)
 
         sql += " ORDER BY timestamp DESC LIMIT ?"
         params.append(limit)
@@ -429,9 +432,10 @@ class SecurityDatabase:
             sql += " AND (risk_score IS NOT NULL AND risk_score >= ?)"
             params.append(min_risk)
 
-        if directionality and directionality.upper() != "ALL":
-            sql += " AND directionality = ?"
-            params.append(directionality.upper())
+        dir_clean = (directionality or "").strip().upper()
+        if dir_clean and dir_clean not in ("ALL", "ALL DIRECTIONALITIES", "ALL_DIRECTIONALITIES", "*"):
+            sql += " AND UPPER(directionality) = ?"
+            params.append(dir_clean)
 
         if query and query.strip():
             q = f"%{query.strip()}%"
