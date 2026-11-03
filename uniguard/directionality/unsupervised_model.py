@@ -16,6 +16,7 @@ import numpy as np
 from sklearn.ensemble import IsolationForest
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import RobustScaler
+from sklearn import get_config, config_context
 
 from uniguard.directionality.asymmetry_engine import AsymmetryEngine, DIRECTIONALITY_FEATURE_NAMES
 from uniguard.directionality.heuristics import HeuristicBaselineComparator
@@ -116,6 +117,8 @@ class UnsupervisedDirectionalityEngine:
             try:
                 self.scaler = joblib.load(scaler_path)
                 self.isolation_forest = joblib.load(if_path)
+                if self.isolation_forest is not None:
+                    self.isolation_forest.n_jobs = 1
                 if os.path.exists(kmeans_path):
                     self.kmeans_clusterer = joblib.load(kmeans_path)
                 self.is_fitted = True
@@ -217,11 +220,12 @@ class UnsupervisedDirectionalityEngine:
         anomaly_factor = 0.0
         if self.is_fitted and self.scaler is not None and self.isolation_forest is not None:
             try:
-                scaled_v = self.scaler.transform(vec)
-                # Isolation Forest decision_function: lower means more anomalous (outlier directionality)
-                raw_decision = float(self.isolation_forest.decision_function(scaled_v)[0])
-                # Normalize decision to [0, 1] anomaly factor
-                anomaly_factor = float(np.clip(0.5 - (raw_decision * 1.5), 0.0, 1.0))
+                with config_context(**get_config()):
+                    scaled_v = self.scaler.transform(vec)
+                    # Isolation Forest decision_function: lower means more anomalous (outlier directionality)
+                    raw_decision = float(self.isolation_forest.decision_function(scaled_v)[0])
+                    # Normalize decision to [0, 1] anomaly factor
+                    anomaly_factor = float(np.clip(0.5 - (raw_decision * 1.5), 0.0, 1.0))
             except Exception:
                 anomaly_factor = 0.0
 

@@ -7,6 +7,8 @@ that deviate from normal unidirectional baseline behavior.
 from typing import Dict, Any, List, Optional
 import numpy as np
 from sklearn.ensemble import IsolationForest
+from sklearn.utils.parallel import Parallel, delayed
+from sklearn import get_config, config_context
 import joblib
 
 
@@ -38,7 +40,15 @@ class IsolationForestAnomalyDetector:
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         """Predicts anomaly status: -1 for anomaly, 1 for inlier/normal."""
-        return self.model.predict(X)
+        with config_context(**get_config()):
+            if hasattr(self.model, "n_jobs") and getattr(X, "shape", [0])[0] == 1 and getattr(self.model, "n_jobs", 1) != 1:
+                orig_jobs = self.model.n_jobs
+                self.model.n_jobs = 1
+                try:
+                    return self.model.predict(X)
+                finally:
+                    self.model.n_jobs = orig_jobs
+            return self.model.predict(X)
 
     def score_samples(self, X: np.ndarray) -> np.ndarray:
         """Returns normalized anomaly score in [0.0, 1.0].
@@ -46,7 +56,16 @@ class IsolationForestAnomalyDetector:
         Raw score is typically between -0.5 and 0.5 where lower = more anomalous.
         We invert and normalize so that 1.0 = maximum anomaly, 0.0 = completely normal.
         """
-        raw_scores = self.model.score_samples(X)  # opposite of anomaly score
+        with config_context(**get_config()):
+            if hasattr(self.model, "n_jobs") and getattr(X, "shape", [0])[0] == 1 and getattr(self.model, "n_jobs", 1) != 1:
+                orig_jobs = self.model.n_jobs
+                self.model.n_jobs = 1
+                try:
+                    raw_scores = self.model.score_samples(X)
+                finally:
+                    self.model.n_jobs = orig_jobs
+            else:
+                raw_scores = self.model.score_samples(X)  # opposite of anomaly score
         # Normal range is ~ -0.2 to -0.8 in sklearn
         # Map: score in [-0.8, -0.2] -> [1.0, 0.0]
         norm_scores = np.clip((-raw_scores - 0.3) / 0.5, 0.0, 1.0)

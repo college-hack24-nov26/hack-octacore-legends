@@ -7,7 +7,7 @@ to enforce bidirectional exclusion before security threat detection.
 
 import threading
 import time
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Tuple, Optional, Any, Callable
 from uniguard.flow_engine.flow import UnidirectionalFlow, CanonicalBiflow
 from uniguard.directionality.flow_identity import CanonicalFlowKey
 from uniguard.directionality.unsupervised_model import (
@@ -223,19 +223,23 @@ class FlowTracker:
             self.total_flows_evicted += len(evicted)
             return evicted
 
-    def flush_all(self) -> List[UnidirectionalFlow]:
+    def flush_all(self, should_stop: Optional[Callable[[], bool]] = None) -> List[UnidirectionalFlow]:
         """Flushes all currently active flows upon shutdown or PCAP EOF."""
         evicted: List[UnidirectionalFlow] = []
 
         with self._lock:
             if self.enable_directionality:
                 for biflow in list(self.active_biflows.values()):
+                    if should_stop and should_stop():
+                        break
                     biflow.is_closed = True
                     biflow.closure_reason = "FLUSH"
                     evicted.append(self._finalize_biflow(biflow))
                 self.active_biflows.clear()
             else:
                 for flow in list(self.active_flows.values()):
+                    if should_stop and should_stop():
+                        break
                     flow.is_closed = True
                     flow.closure_reason = "FLUSH"
                     evicted.append(flow)

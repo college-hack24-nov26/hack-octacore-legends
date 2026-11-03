@@ -64,6 +64,7 @@ from uniguard.detection.engine import DetectionEngine, SecurityEvent
 from uniguard.database.storage import SecurityDatabase
 from uniguard.directionality.explainer import DirectionalityExplainer
 from uniguard.desktop_ui.server import start_soc_server, SocStateBridge
+from sklearn import get_config, config_context
 
 try:
     from PySide6.QtWebEngineWidgets import QWebEngineView
@@ -249,22 +250,36 @@ class MonitoringWorker(QThread):
 
         # 2. Worker consumer thread: drains evicted_queue and analyzes flows in parallel
         def analysis_worker_loop():
-            while self.is_running or not self.evicted_queue.empty():
-                try:
-                    flow = self.evicted_queue.get(timeout=0.1)
-                except queue.Empty:
-                    continue
-                try:
-                    # Skip heavy explainability on routine elephant active-timeout slices
-                    skip_shap = getattr(flow, "is_elephant", False) and flow.closure_reason == "ACTIVE_TIMEOUT"
-                    event = detection_engine.analyze_flow(flow, skip_shap=skip_shap)
-                    self.event_generated.emit(event)
-                except Exception:
-                    pass
-                finally:
-                    self.evicted_queue.task_done()
+            with config_context(**get_config()):
+                while self.is_running or not self.evicted_queue.empty():
+                    # If monitoring was stopped, rapidly drain all remaining items without computation
+                    if not self.is_running:
+                        try:
+                            self.evicted_queue.get_nowait()
+                            self.evicted_queue.task_done()
+                        except (queue.Empty, ValueError):
+                            break
+                        continue
 
-        analysis_thread = threading.Thread(target=analysis_worker_loop, daemon=True)
+                    try:
+                        flow = self.evicted_queue.get(timeout=0.1)
+                    except queue.Empty:
+                        continue
+
+                    try:
+                        if not self.is_running:
+                            continue
+                        # Skip heavy explainability on routine elephant active-timeout slices
+                        skip_shap = getattr(flow, "is_elephant", False) and flow.closure_reason == "ACTIVE_TIMEOUT"
+                        event = detection_engine.analyze_flow(flow, skip_shap=skip_shap)
+                        if self.is_running:
+                            self.event_generated.emit(event)
+                    except Exception:
+                        pass
+                    finally:
+                        self.evicted_queue.task_done()
+
+        analysis_thread = threading.Thread(target=analysis_worker_loop, daemon=True, name="SOCAnalysisWorker")
         analysis_thread.start()
 
         # 3. Stream from PCAP or Live Sniffer
@@ -272,6 +287,9 @@ class MonitoringWorker(QThread):
             pcap_file = self.target or DEFAULT_SAMPLE_PCAP
             if not os.path.exists(pcap_file):
                 self.error_occurred.emit(f"PCAP file not found: {pcap_file}")
+                self.is_running = False
+                if analysis_thread.is_alive():
+                    analysis_thread.join(timeout=1.0)
                 self.finished_processing.emit()
                 return
 
@@ -297,7 +315,7 @@ class MonitoringWorker(QThread):
 
                 for flow in evicted:
                     try:
-                        self.evicted_queue.put(flow, timeout=0.5)
+                        self.evicted_queue.put(flow, timeout=0.2)
                     except queue.Full:
                         pass
 
@@ -305,19 +323,35 @@ class MonitoringWorker(QThread):
                 if (now - last_heartbeat) >= 0.25:
                     delta_pkts = tracker.total_packets_processed - last_packet_count
                     pps = delta_pkts / max(now - last_heartbeat, 1e-4)
-                    self.emit_telemetry(tracker, detection_engine, pps)
+                    if self.is_running:
+                        self.emit_telemetry(tracker, detection_engine, pps)
                     last_heartbeat = now
                     last_packet_count = tracker.total_packets_processed
                     time.sleep(0.001)
 
-            for flow in tracker.flush_all():
-                try:
-                    self.evicted_queue.put(flow, timeout=0.5)
-                except queue.Full:
-                    pass
+            if self.is_running:
+                for flow in tracker.flush_all(should_stop=lambda: not self.is_running):
+                    if not self.is_running:
+                        break
+                    try:
+                        self.evicted_queue.put(flow, timeout=0.1)
+                    except queue.Full:
+                        pass
 
-            self.evicted_queue.join()
-            self.emit_telemetry(tracker, detection_engine, 0.0)
+            if self.is_running:
+                self.evicted_queue.join()
+                if self.is_running:
+                    self.emit_telemetry(tracker, detection_engine, 0.0)
+            else:
+                while not self.evicted_queue.empty():
+                    try:
+                        self.evicted_queue.get_nowait()
+                        self.evicted_queue.task_done()
+                    except (queue.Empty, ValueError):
+                        break
+
+            if analysis_thread.is_alive():
+                analysis_thread.join(timeout=1.0)
             self.finished_processing.emit()
 
         elif self.source_mode == "live":
@@ -354,6 +388,9 @@ class MonitoringWorker(QThread):
                     f"Live Capture Driver Error: {str(e)}\n\n"
                     "Note for Windows: Live packet capture requires 'Npcap' with 'WinPcap API-compatible Mode' installed."
                 )
+                self.is_running = False
+                if analysis_thread.is_alive():
+                    analysis_thread.join(timeout=1.0)
                 self.finished_processing.emit()
                 return
 
@@ -363,7 +400,7 @@ class MonitoringWorker(QThread):
                 last_packet_count = 0
 
                 while self.is_running:
-                    time.sleep(0.25)
+                    time.sleep(0.1)
                     now = time.time()
 
                     # Periodic timeout sweep for completed / idle flows
@@ -375,22 +412,41 @@ class MonitoringWorker(QThread):
                             pass
 
                     # Rate-limited UI statistics heartbeat (4 Hz)
-                    delta_pkts = tracker.total_packets_processed - last_packet_count
-                    pps = delta_pkts / max(now - last_heartbeat, 1e-4)
-                    self.emit_telemetry(tracker, detection_engine, pps)
-                    last_heartbeat = now
-                    last_packet_count = tracker.total_packets_processed
+                    if (now - last_heartbeat) >= 0.25:
+                        delta_pkts = tracker.total_packets_processed - last_packet_count
+                        pps = delta_pkts / max(now - last_heartbeat, 1e-4)
+                        if self.is_running:
+                            self.emit_telemetry(tracker, detection_engine, pps)
+                        last_heartbeat = now
+                        last_packet_count = tracker.total_packets_processed
 
             except Exception as e:
                 self.error_occurred.emit(f"Flow Processing Runtime Error: {str(e)}")
             finally:
                 if self.live_sniffer:
-                    self.live_sniffer.stop()
-                for flow in tracker.flush_all():
                     try:
-                        self.evicted_queue.put_nowait(flow)
-                    except queue.Full:
+                        self.live_sniffer.stop()
+                    except Exception:
                         pass
+                if self.is_running:
+                    for flow in tracker.flush_all(should_stop=lambda: not self.is_running):
+                        if not self.is_running:
+                            break
+                        try:
+                            self.evicted_queue.put_nowait(flow)
+                        except queue.Full:
+                            pass
+                    self.evicted_queue.join()
+                else:
+                    while not self.evicted_queue.empty():
+                        try:
+                            self.evicted_queue.get_nowait()
+                            self.evicted_queue.task_done()
+                        except (queue.Empty, ValueError):
+                            break
+
+                if analysis_thread.is_alive():
+                    analysis_thread.join(timeout=1.0)
                 self.finished_processing.emit()
 
     def emit_telemetry(self, tracker: FlowTracker, detection_engine: DetectionEngine, pps: float) -> None:
@@ -431,7 +487,10 @@ class MonitoringWorker(QThread):
     def stop(self) -> None:
         self.is_running = False
         if self.live_sniffer:
-            self.live_sniffer.stop()
+            try:
+                self.live_sniffer.stop()
+            except Exception:
+                pass
 
 
 class UniGuardDesktopApp(QMainWindow):
@@ -931,6 +990,15 @@ class UniGuardDesktopApp(QMainWindow):
             self.custom_pcap_path = path
 
     def start_monitoring(self) -> None:
+        # Ensure any existing worker is fully stopped before instantiating a new one
+        if self.worker is not None:
+            if self.worker.isRunning():
+                self.worker.stop()
+                if not self.worker.wait(3000):
+                    self.worker.quit()
+                    self.worker.wait(1000)
+            self.worker = None
+
         self.btn_start.setEnabled(False)
         self.btn_stop.setEnabled(True)
         self.table.setRowCount(0)
@@ -992,17 +1060,22 @@ class UniGuardDesktopApp(QMainWindow):
             )
             self.lbl_health_capture.setText(f"Capture: REPLAY ({os.path.basename(pcap_path)})")
 
+        SocStateBridge.get().worker_thread = self.worker
         self.lbl_health_proc.setText("Processing: ACTIVE")
         self.worker.event_generated.connect(self.on_event_received)
         self.worker.stats_updated.connect(self.on_stats_updated)
-        self.worker.finished_processing.connect(self.on_monitoring_finished)
+        self.worker.finished.connect(self.on_monitoring_finished)
         self.worker.error_occurred.connect(self.on_worker_error)
         self.worker.start()
 
     def stop_monitoring(self) -> None:
-        if self.worker:
-            self.worker.stop()
-            self.worker.wait()
+        if self.worker is not None:
+            if self.worker.isRunning():
+                self.worker.stop()
+                if not self.worker.wait(3000):
+                    self.worker.quit()
+                    self.worker.wait(1000)
+            self.worker = None
         self.btn_start.setEnabled(True)
         self.btn_stop.setEnabled(False)
         self.lbl_health_capture.setText("Capture: STOPPED")
@@ -1399,13 +1472,19 @@ class UniGuardDesktopApp(QMainWindow):
     def on_monitoring_finished(self) -> None:
         self.btn_start.setEnabled(True)
         self.btn_stop.setEnabled(False)
-        self.lbl_health_capture.setText("Capture: IDLE")
+        if "STOPPED" not in self.lbl_health_capture.text():
+            self.lbl_health_capture.setText("Capture: IDLE")
         self.lbl_health_proc.setText("Processing: COMPLETE")
 
     def closeEvent(self, event) -> None:
+        # 1. Safely stop monitoring worker thread before window is destroyed
+        self.stop_monitoring()
+
+        # 2. Terminate background local SOC web server
         if hasattr(self, "soc_server") and self.soc_server:
             try:
                 self.soc_server.shutdown()
+                self.soc_server.server_close()
             except Exception:
                 pass
         super().closeEvent(event)

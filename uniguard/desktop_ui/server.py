@@ -279,9 +279,18 @@ class SocHttpHandler(BaseHTTPRequestHandler):
             self.send_error(500, f"JSON Error: {str(e)}")
 
 
-def start_soc_server(host: str = "127.0.0.1", port: int = 8765) -> HTTPServer:
+class SocHttpServer(HTTPServer):
+    allow_reuse_address = True
+    daemon_threads = True
+
+
+def start_soc_server(host: str = "127.0.0.1", port: int = 8765) -> Optional[HTTPServer]:
     """Spawns the local SOC HTTP server in a background daemon thread."""
-    server = HTTPServer((host, port), SocHttpHandler)
-    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
-    server_thread.start()
-    return server
+    try:
+        server = SocHttpServer((host, port), SocHttpHandler)
+        server_thread = threading.Thread(target=server.serve_forever, daemon=True, name="SocHttpServerThread")
+        server_thread.start()
+        return server
+    except Exception as e:
+        print(f"[!] Warning: Could not bind SOC Web server on {host}:{port}: {e}")
+        return None

@@ -10,6 +10,8 @@ import time
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, confusion_matrix, precision_recall_fscore_support
+from sklearn.utils.parallel import Parallel, delayed
+from sklearn import get_config, config_context
 import joblib
 
 try:
@@ -63,11 +65,27 @@ class SupervisedThreatClassifier:
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         """Predicts class labels for input feature matrix."""
-        return self.model.predict(X)
+        with config_context(**get_config()):
+            if hasattr(self.model, "n_jobs") and getattr(X, "shape", [0])[0] == 1 and getattr(self.model, "n_jobs", 1) != 1:
+                orig_jobs = self.model.n_jobs
+                self.model.n_jobs = 1
+                try:
+                    return self.model.predict(X)
+                finally:
+                    self.model.n_jobs = orig_jobs
+            return self.model.predict(X)
 
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
         """Predicts class probability distributions."""
-        return self.model.predict_proba(X)
+        with config_context(**get_config()):
+            if hasattr(self.model, "n_jobs") and getattr(X, "shape", [0])[0] == 1 and getattr(self.model, "n_jobs", 1) != 1:
+                orig_jobs = self.model.n_jobs
+                self.model.n_jobs = 1
+                try:
+                    return self.model.predict_proba(X)
+                finally:
+                    self.model.n_jobs = orig_jobs
+            return self.model.predict_proba(X)
 
     def evaluate(self, X_test: np.ndarray, y_test: np.ndarray) -> Dict[str, Any]:
         """Comprehensive cybersecurity evaluation of model performance.
