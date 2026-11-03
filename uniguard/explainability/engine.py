@@ -360,3 +360,4 @@ class AIThreatExplanationEngine:
             parts.append(f"5) Directionality Modulation Factor: {dir_mod:.2f}x multiplier applied based on flow asymmetry.")
 
         return " ".join(parts)
+

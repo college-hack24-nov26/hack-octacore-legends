@@ -106,3 +106,4 @@ class AIThreatExplanation:
             investigation_suggestions=list(data.get("investigation_suggestions", [])),
             timestamp=str(data.get("timestamp", time.strftime("%Y-%m-%d %H:%M:%S"))),
         )
+

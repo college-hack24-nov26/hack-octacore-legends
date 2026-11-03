@@ -68,3 +68,4 @@ class DefensiveInvestigationPlaybooks:
         """Returns defensive investigation steps for the given threat category."""
         key = threat_category.upper().replace(" ", "_")
         return cls.PLAYBOOKS.get(key, cls.PLAYBOOKS["ANOMALOUS"])
+
