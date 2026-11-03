@@ -816,6 +816,7 @@ class UniGuardDesktopApp(QMainWindow):
         lbl_title = QLabel(title)
         lbl_title.setProperty("class", "kpi-title")
         lbl_val = QLabel(init_val)
+        lbl_val.setObjectName("kpi-value")
         lbl_val.setProperty("class", "kpi-value")
         lbl_val.setStyleSheet(f"color: {accent_color};")
 
@@ -1140,6 +1141,9 @@ class UniGuardDesktopApp(QMainWindow):
         self.lbl_inspect_flow.setStyleSheet("font-size: 10.5pt; font-weight: bold; color: #f0f6fc;")
         self.lbl_inspect_flow.setWordWrap(True)
 
+        self.lbl_inspect_model = QLabel("AI Detection Engine: Initializing models...")
+        self.lbl_inspect_model.setStyleSheet("font-size: 8.5pt; color: #38bdf8; font-weight: 600;")
+
         self.lbl_inspect_risk = QLabel("Calculated Risk Score: -- / 100")
         self.lbl_inspect_risk.setStyleSheet("font-size: 11pt; font-weight: bold; color: #ef4444;")
 
@@ -1151,21 +1155,22 @@ class UniGuardDesktopApp(QMainWindow):
         self.progress_risk.setFixedHeight(18)
 
         gf_layout.addWidget(self.lbl_inspect_flow)
+        gf_layout.addWidget(self.lbl_inspect_model)
         gf_layout.addWidget(self.lbl_inspect_risk)
         gf_layout.addWidget(self.progress_risk)
         right_layout.addWidget(gauge_frame)
 
         # 2. XAI Root Cause Attribution
-        xai_group = QGroupBox("EXPLAINABLE AI (XAI) - ROOT CAUSE ATTRIBUTION FACTORS")
+        xai_group = QGroupBox("AI THREAT EXPLANATION ENGINE – \"WHY WAS THIS DETECTED?\"")
         xai_layout = QVBoxLayout(xai_group)
         self.xai_text = QTextEdit()
         self.xai_text.setReadOnly(True)
-        self.xai_text.setPlaceholderText("Detailed SHAP tree attributions and directional contributing factors will populate here...")
+        self.xai_text.setPlaceholderText("Detailed evidence-based threat explanation answering 'Why was this detected?' will populate here...")
         xai_layout.addWidget(self.xai_text)
         right_layout.addWidget(xai_group, stretch=1)
 
         # 3. Actionable Cybersecurity Investigation Playbook
-        playbook_group = QGroupBox("RECOMMENDED SOC INVESTIGATION STEPS")
+        playbook_group = QGroupBox("RECOMMENDED DEFENSIVE INVESTIGATION STEPS (SOC PLAYBOOK)")
         pb_layout = QVBoxLayout(playbook_group)
         self.txt_playbook = QTextEdit()
         self.txt_playbook.setReadOnly(True)
@@ -1912,12 +1917,18 @@ class UniGuardDesktopApp(QMainWindow):
         asym_pct = (asym_cnt / total) * 100.0
         insuf_pct = (insuf_cnt / total) * 100.0
 
-        self.card_utie_total.findChild(QLabel, "kpi-value").setText(str(total))
-        self.card_utie_unidir.findChild(QLabel, "kpi-value").setText(f"{unidir_cnt} ({unidir_pct:.1f}%)")
-        self.card_utie_bidir.findChild(QLabel, "kpi-value").setText(f"{bidir_cnt} ({bidir_pct:.1f}%)")
-        self.card_utie_asym.findChild(QLabel, "kpi-value").setText(f"{asym_cnt} ({asym_pct:.1f}%)")
-        self.card_utie_insufficient.findChild(QLabel, "kpi-value").setText(f"{insuf_cnt} ({insuf_pct:.1f}%)")
-        self.card_utie_suspicious.findChild(QLabel, "kpi-value").setText(str(self.utie_suspicious_count))
+        if hasattr(self, "card_utie_total") and hasattr(self.card_utie_total, "value_label"):
+            self.card_utie_total.value_label.setText(str(total))
+        if hasattr(self, "card_utie_unidir") and hasattr(self.card_utie_unidir, "value_label"):
+            self.card_utie_unidir.value_label.setText(f"{unidir_cnt} ({unidir_pct:.1f}%)")
+        if hasattr(self, "card_utie_bidir") and hasattr(self.card_utie_bidir, "value_label"):
+            self.card_utie_bidir.value_label.setText(f"{bidir_cnt} ({bidir_pct:.1f}%)")
+        if hasattr(self, "card_utie_asym") and hasattr(self.card_utie_asym, "value_label"):
+            self.card_utie_asym.value_label.setText(f"{asym_cnt} ({asym_pct:.1f}%)")
+        if hasattr(self, "card_utie_insufficient") and hasattr(self.card_utie_insufficient, "value_label"):
+            self.card_utie_insufficient.value_label.setText(f"{insuf_cnt} ({insuf_pct:.1f}%)")
+        if hasattr(self, "card_utie_suspicious") and hasattr(self.card_utie_suspicious, "value_label"):
+            self.card_utie_suspicious.value_label.setText(str(self.utie_suspicious_count))
 
         self.lbl_utie_dist.setText(
             f"DIRECTIONALITY DISTRIBUTION:  UNIDIRECTIONAL: {unidir_pct:.1f}%  |  BIDIRECTIONAL: {bidir_pct:.1f}%  |  ASYMMETRIC: {asym_pct:.1f}%  |  INSUFFICIENT: {insuf_pct:.1f}%"
@@ -2410,6 +2421,7 @@ Composite Risk Score: {report.risk_score if report.risk_score is not None else 0
             "flow_metrics": flow_metrics,
             "baseline_5_20_result": getattr(event, "baseline_5_20_result", "N/A"),
             "is_excluded": getattr(event, "is_excluded_from_unidirectional_security", False),
+            "ai_explanation": getattr(event, "explanation", {}) or {},
         })
 
         # Add to recent flows for Live Traffic table (using FLAGGED instead of false claim MITIGATED)
@@ -2429,6 +2441,7 @@ Composite Risk Score: {report.risk_score if report.risk_score is not None else 0
             "duration": f"{flow_metrics.get('duration_seconds', flow_metrics.get('flow_duration', 1.0)):.1f}s",
             "ml_conf": f"{event.confidence_pct:.1f}%",
             "flow_metrics": flow_metrics,
+            "ai_explanation": getattr(event, "explanation", {}) or {},
         })
 
         # Update Analytics in bridge (Top Talkers)
@@ -2562,39 +2575,100 @@ Composite Risk Score: {report.risk_score if report.risk_score is not None else 0
         )
 
         # Tab 3: Threat Attribution & Gauge
+        expl_data = getattr(event, "explanation", None) or {}
+        model_name = expl_data.get("model_name", "Random Forest Classifier")
+        model_conf_val = expl_data.get("model_confidence")
+        conf_str = f"{model_conf_val * 100:.1f}%" if model_conf_val is not None else f"{event.confidence_pct:.1f}%"
+
         self.lbl_inspect_flow.setText(
-            f"Incident ID: {event.event_id}\nTarget Flow: {event.flow_key}\nClassifier Label: {event.threat_type} (Confidence: {event.confidence_pct}%)"
+            f"Incident ID: {event.event_id}\nTarget Flow: {event.flow_key}\nClassifier Label: {event.threat_type} (Confidence: {conf_str})"
         )
+        if hasattr(self, "lbl_inspect_model"):
+            self.lbl_inspect_model.setText(f"AI Detection Engine: {model_name}  |  Confidence: {conf_str}")
+
         self.lbl_inspect_risk.setText(f"Calculated Risk Score: {event.risk_score} / 100  [{event.severity}]")
         self.progress_risk.setValue(event.risk_score)
 
-        # Tab 3: XAI Breakdown
-        xai_lines = [
-            f"[*] THREAT EXPLANATION FOR: {event.threat_type}",
-            f"    Calculated Risk: {event.risk_score}/100 ({event.severity})",
-            f"    Anomaly Severity Score: {event.anomaly_score:.3f} / 1.000",
-            "-" * 60,
-            "TOP CONTRIBUTING FORWARD BEHAVIORAL FACTORS (SHAP VALUES):",
-        ]
+        # Tab 3: Structured AI Threat Explanation ("Why Was This Detected?")
+        summary = expl_data.get("summary", f"Behavioral patterns in {event.threat_type} evaluated by detection pipeline.")
+        behaviors = expl_data.get("observed_behavior", [])
+        contributions = expl_data.get("feature_contributions", [])
+        dir_info = expl_data.get("directionality", {})
+        risk_expl = expl_data.get("risk_explanation", "")
 
-        for factor in event.contributing_factors:
-            direction = factor.get("direction", "RISK_INCREASING")
-            sym = "[+]" if direction == "RISK_INCREASING" else "[-]"
-            fname = factor.get("feature", "unknown")
-            expl = factor.get("explanation", "")
-            impact = factor.get("impact_score", 0.0)
-            xai_lines.append(f"  {sym} {fname.upper()}: {expl} (Impact Weight: {impact:+.3f})")
+        xai_lines = [
+            "=" * 76,
+            "AI THREAT EXPLANATION ENGINE: \"WHY WAS THIS DETECTED?\"",
+            "=" * 76,
+            f"CLASSIFICATION:    {event.threat_type}  |  SEVERITY: {event.severity}  |  RISK SCORE: {event.risk_score}/100",
+            f"DETECTING MODEL:   {model_name} (Prediction Confidence: {conf_str})",
+            f"ANOMALY SEVERITY:  {event.anomaly_score:.3f} / 1.000 (Isolation Forest Baseline)",
+            "",
+            "[*] EXECUTIVE THREAT SUMMARY:",
+            f"    {summary}",
+            "",
+            "[*] FACTUAL OBSERVED NETWORK BEHAVIOR (GROUND TRUTH):",
+        ]
+        if behaviors:
+            for b in behaviors:
+                xai_lines.append(f"    • {b}")
+        else:
+            xai_lines.append(f"    • Flow evaluated against standard enterprise traffic baselines.")
+
+        xai_lines.append("")
+        xai_lines.append("[*] FEATURE CONTRIBUTION ATTRIBUTION (LOCAL PREDICTION INFLUENCE):")
+        if contributions:
+            for c in contributions:
+                direction = c.get("contribution", "positive")
+                sym = "[+]" if direction == "positive" else "[-]"
+                feat = str(c.get("feature", "unknown")).upper()
+                val = c.get("observed_value", "N/A")
+                score = float(c.get("impact_score", 0.0))
+                expl = c.get("explanation", "")
+                xai_lines.append(f"    {sym} {feat} (Observed: {val}, Impact Weight: {score:+.3f}):")
+                xai_lines.append(f"        {expl}")
+        elif event.contributing_factors:
+            for factor in event.contributing_factors:
+                feat = factor.get("feature", "unknown").upper()
+                expl = factor.get("explanation", "")
+                score = factor.get("impact_score", 0.0)
+                xai_lines.append(f"    [+] {feat} (Impact: {score:+.3f}): {expl}")
+        else:
+            xai_lines.append("    • No individual feature dominated the classification.")
+
+        xai_lines.append("")
+        xai_lines.append("[*] DIRECTIONALITY & SENSOR VISIBILITY CONTEXT:")
+        dir_st = dir_info.get("state", getattr(event, "directionality_state", "UNKNOWN"))
+        dir_score_val = dir_info.get("score", getattr(event, "directionality_score", 0.0))
+        dir_exp = dir_info.get("explanation", "")
+        dir_note = dir_info.get("sensor_visibility_note", "")
+        xai_lines.append(f"    • State: {dir_st} (Asymmetry Score: {dir_score_val:.2f})")
+        if dir_exp:
+            xai_lines.append(f"    • Traffic Flow: {dir_exp}")
+        if dir_note:
+            xai_lines.append(f"    • Sensor Context: {dir_note}")
+
+        xai_lines.append("")
+        xai_lines.append("[*] MULTI-FACTOR RISK SCORING RATIONALE:")
+        if risk_expl:
+            xai_lines.append(f"    {risk_expl}")
+        else:
+            xai_lines.append(f"    Assigned risk score of {event.risk_score}/100 ({event.severity}).")
 
         self.xai_text.setText("\n".join(xai_lines))
 
         # Tab 3: Actionable SOC Investigation Steps (Playbook)
         playbook_lines = [
-            f"=== SOC ANALYST TRIAGE PLAYBOOK: {event.threat_type} ===",
-            f"Severity: {event.severity}  |  Risk Score: {event.risk_score}/100  |  Confidence: {event.confidence_pct}%",
+            f"=== DEFENSIVE SOC ANALYST INVESTIGATION PLAYBOOK: {event.threat_type} ===",
+            f"Severity: {event.severity}  |  Risk Score: {event.risk_score}/100  |  Confidence: {conf_str}",
             "-" * 60,
         ]
 
-        if event.threat_type == "PORT_SCAN":
+        suggs = expl_data.get("investigation_suggestions", [])
+        if suggs:
+            for idx, s in enumerate(suggs, 1):
+                playbook_lines.append(f"{idx}. {s}")
+        elif event.threat_type == "PORT_SCAN":
             playbook_lines.extend([
                 "1. Verify Source Identity: Check if source IP belongs to an internal vulnerability scanner (Nessus, Qualys) or unauthorized host.",
                 "2. Port Diversity Check: Inspect destination port range to confirm whether reconnaissance targeted well-known services (21, 22, 23, 80, 443).",

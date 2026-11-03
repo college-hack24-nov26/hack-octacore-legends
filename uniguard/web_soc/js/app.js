@@ -155,6 +155,45 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('modal-anomaly').textContent = (threat.anomaly_score || 0.75).toFixed(2);
     document.getElementById('modal-explanation').textContent = threat.explanation || 'Behavioral anomaly detected in unidirectional traffic.';
 
+    // Enhanced AI Threat Explanation ("Why Was This Detected?")
+    const aiExpl = threat.ai_explanation || threat.explanation_dict || {};
+    const modelNameEl = document.getElementById('modal-model-name');
+    if (modelNameEl) {
+      modelNameEl.textContent = aiExpl.model_name || 'Random Forest Classifier';
+    }
+    const summaryEl = document.getElementById('modal-ai-summary');
+    if (summaryEl) {
+      summaryEl.textContent = aiExpl.summary || threat.explanation || 'Behavioral pattern analyzed by ML detection pipeline.';
+    }
+    const behaviorEl = document.getElementById('modal-ai-behavior');
+    if (behaviorEl) {
+      behaviorEl.innerHTML = '';
+      const behs = Array.isArray(aiExpl.observed_behavior) ? aiExpl.observed_behavior : [];
+      if (behs.length === 0) {
+        behaviorEl.innerHTML = `<li>Flow analyzed against baseline traffic thresholds across 24 unidirectional network metrics.</li>`;
+      } else {
+        behs.forEach(b => {
+          const li = document.createElement('li');
+          li.textContent = b;
+          behaviorEl.appendChild(li);
+        });
+      }
+    }
+    const suggEl = document.getElementById('modal-ai-suggestions');
+    if (suggEl) {
+      suggEl.innerHTML = '';
+      const suggs = Array.isArray(aiExpl.investigation_suggestions) ? aiExpl.investigation_suggestions : [];
+      if (suggs.length === 0) {
+        suggEl.innerHTML = `<li>Review alert telemetry, verify source endpoint identity, and check destination port legitimacy.</li>`;
+      } else {
+        suggs.forEach(s => {
+          const li = document.createElement('li');
+          li.textContent = s;
+          suggEl.appendChild(li);
+        });
+      }
+    }
+
     modalOverlay.classList.add('active');
   }
 
@@ -483,11 +522,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (threatTag) threatTag.textContent = `${flow.threat_type || flow.threat_category || 'SUSPICIOUS'} (${flow.severity || 'HIGH'})`;
 
-    const factors = flow.contributing_factors || [];
+    const aiExpl = flow.ai_explanation || flow.explanation_dict || {};
+    const factors = (aiExpl.feature_contributions && aiExpl.feature_contributions.length > 0)
+      ? aiExpl.feature_contributions
+      : (flow.contributing_factors || []);
+
     if (listEl) {
       listEl.innerHTML = '';
-      if (factors.length === 0) {
-        listEl.innerHTML = `<li>${flow.explanation || 'Behavioral directionality asymmetry combined with port distribution.'}</li>`;
+      const behaviors = aiExpl.observed_behavior || [];
+      if (behaviors.length > 0) {
+        behaviors.forEach(b => {
+          const li = document.createElement('li');
+          li.textContent = b;
+          listEl.appendChild(li);
+        });
+      } else if (factors.length === 0) {
+        listEl.innerHTML = `<li>${aiExpl.summary || flow.explanation || 'Behavioral directionality asymmetry combined with port distribution.'}</li>`;
       } else {
         factors.forEach(f => {
           const text = typeof f === 'object' ? `${(f.feature || '').toUpperCase()}: ${f.explanation || ''}` : String(f);
@@ -501,12 +551,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (xaiPanel) {
       xaiPanel.innerHTML = '';
       if (factors.length === 0) {
-        xaiPanel.innerHTML = `<div style="padding:12px; background:rgba(15,23,42,0.6); border-radius:var(--radius-sm); color:#cbd5e1">${flow.explanation || 'Anomaly detected via Isolation Forest and Random Forest unidirectional tree attributions.'}</div>`;
+        xaiPanel.innerHTML = `<div style="padding:12px; background:rgba(15,23,42,0.6); border-radius:var(--radius-sm); color:#cbd5e1">${aiExpl.summary || flow.explanation || 'Anomaly detected via Isolation Forest and Random Forest unidirectional tree attributions.'}</div>`;
       } else {
         factors.forEach(f => {
           const featName = typeof f === 'object' ? (f.feature || 'Feature') : 'Attribution Factor';
           const impact = typeof f === 'object' ? (f.impact_score || 0.5) : 0.5;
           const expl = typeof f === 'object' ? (f.explanation || '') : String(f);
+          const contrib = typeof f === 'object' ? (f.contribution || 'positive') : 'positive';
+          const sign = contrib === 'positive' ? '+' : '-';
+          const badgeColor = contrib === 'positive' ? 'var(--accent-purple)' : 'var(--accent-cyan)';
 
           const item = document.createElement('div');
           item.style.padding = '8px 12px';
@@ -515,7 +568,7 @@ document.addEventListener('DOMContentLoaded', () => {
           item.innerHTML = `
             <div style="display:flex; justify-content:space-between; margin-bottom:4px">
               <span style="font-weight:600; color:#fff">${featName.toUpperCase()}</span>
-              <span style="color:var(--accent-purple); font-family:var(--font-mono)">+${(impact * 100).toFixed(0)}% Impact</span>
+              <span style="color:${badgeColor}; font-family:var(--font-mono)">${sign}${(Math.abs(impact) * 100).toFixed(0)}% Influence</span>
             </div>
             <div style="font-size:11px; color:var(--text-secondary)">${expl}</div>
           `;

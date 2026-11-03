@@ -19,6 +19,7 @@ from uniguard.models.supervised import SupervisedThreatClassifier
 from uniguard.models.anomaly import IsolationForestAnomalyDetector
 from uniguard.risk.scorer import RiskScorer
 from uniguard.explainability.explainer import FlowExplainer
+from uniguard.explainability.engine import AIThreatExplanationEngine
 
 
 @dataclass
@@ -44,6 +45,7 @@ class SecurityEvent:
     directionality_explanation: List[str] = field(default_factory=list)
     baseline_5_20_result: str = "N/A"
     is_excluded_from_unidirectional_security: bool = False
+    explanation: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -73,6 +75,7 @@ class DetectionEngine:
 
         self.events_processed_count: int = 0
         self.threats_detected_count: int = 0
+        self.threat_explainer = AIThreatExplanationEngine(explainer=self.explainer)
 
     def analyze_flow(self, flow: UnidirectionalFlow, skip_shap: bool = False) -> SecurityEvent:
         """Analyzes a completed flow through the full AI and directionality pipeline."""
@@ -122,6 +125,35 @@ class DetectionEngine:
         # it is EXCLUDED from the unidirectional ML threat pipeline to eliminate normal download/web false alarms,
         # while still recording telemetry for the dashboard and database.
         if is_excluded:
+            excl_metrics = {
+                "packet_count": flow.packet_count,
+                "byte_count": flow.byte_count,
+                "duration": round(flow.duration, 4),
+                "pkt_rate": round(raw_features["pkt_rate"], 2),
+                "byte_rate": round(raw_features["byte_rate"], 2),
+                "entropy": round(raw_features["entropy_pkt_len"], 3),
+            }
+            excl_factors = [
+                {"feature": "directionality", "value": round(dir_score, 3), "impact_score": -0.8, "explanation": "Balanced bidirectional traffic excluded from unidirectional detection"},
+                {"feature": "pkt_count", "value": flow.packet_count, "impact_score": 0.0, "explanation": "Observed packets in forward direction"},
+                {"feature": "byte_count", "value": flow.byte_count, "impact_score": 0.0, "explanation": "Total forward bytes"},
+            ]
+            excl_explanation = self.threat_explainer.explain_detection(
+                alert_id=event_id,
+                flow_id=flow_key,
+                threat_category="BENIGN",
+                model_name="Bidirectional Exclusion Gate",
+                model_confidence=0.99,
+                risk_score=5,
+                severity="INFORMATIONAL",
+                flow_metrics=excl_metrics,
+                raw_features=raw_features,
+                contributing_factors=excl_factors,
+                directionality_state=dir_state,
+                directionality_score=dir_score,
+                directionality_confidence=dir_conf,
+                directionality_explanation=dir_explanation,
+            )
             return SecurityEvent(
                 event_id=event_id,
                 timestamp=now,
@@ -136,25 +168,15 @@ class DetectionEngine:
                 severity="INFORMATIONAL",
                 confidence_pct=99.0,
                 anomaly_score=0.01,
-                contributing_factors=[
-                    {"feature": "directionality", "value": round(dir_score, 3), "explanation": "Balanced bidirectional traffic excluded from unidirectional detection"},
-                    {"feature": "pkt_count", "value": flow.packet_count, "explanation": "Observed packets in forward direction"},
-                    {"feature": "byte_count", "value": flow.byte_count, "explanation": "Total forward bytes"},
-                ],
-                flow_metrics={
-                    "packet_count": flow.packet_count,
-                    "byte_count": flow.byte_count,
-                    "duration": round(flow.duration, 4),
-                    "pkt_rate": round(raw_features["pkt_rate"], 2),
-                    "byte_rate": round(raw_features["byte_rate"], 2),
-                    "entropy": round(raw_features["entropy_pkt_len"], 3),
-                },
+                contributing_factors=excl_factors,
+                flow_metrics=excl_metrics,
                 directionality_state=dir_state,
                 directionality_score=dir_score,
                 directionality_confidence=dir_conf,
                 directionality_explanation=dir_explanation,
                 baseline_5_20_result=b520_label,
                 is_excluded_from_unidirectional_security=True,
+                explanation=excl_explanation.to_dict(),
             )
 
         # Elephant Flow Fast-Path Optimization (Section 4)
@@ -174,11 +196,35 @@ class DetectionEngine:
             risk_score = 10
             severity = "LOW"
             contributing = [
-                {"feature": "pkt_count", "value": flow.packet_count, "explanation": "Elephant flow fast-path bypass"},
-                {"feature": "byte_count", "value": flow.byte_count, "explanation": "Total bulk bytes"},
-                {"feature": "duration", "value": round(flow.duration, 4), "explanation": "Flow duration"},
-                {"feature": "pkt_rate", "value": round(raw_features["pkt_rate"], 2), "explanation": "Packet rate"},
+                {"feature": "pkt_count", "value": flow.packet_count, "impact_score": 0.0, "explanation": "Elephant flow fast-path bypass"},
+                {"feature": "byte_count", "value": flow.byte_count, "impact_score": 0.0, "explanation": "Total bulk bytes"},
+                {"feature": "duration", "value": round(flow.duration, 4), "impact_score": 0.0, "explanation": "Flow duration"},
+                {"feature": "pkt_rate", "value": round(raw_features["pkt_rate"], 2), "impact_score": 0.0, "explanation": "Packet rate"},
             ]
+            el_metrics = {
+                "packet_count": flow.packet_count,
+                "byte_count": flow.byte_count,
+                "duration": round(flow.duration, 4),
+                "pkt_rate": round(raw_features["pkt_rate"], 2),
+                "byte_rate": round(raw_features["byte_rate"], 2),
+                "entropy": round(raw_features["entropy_pkt_len"], 3),
+            }
+            el_explanation = self.threat_explainer.explain_detection(
+                alert_id=event_id,
+                flow_id=flow_key,
+                threat_category=threat_type,
+                model_name="Elephant Flow Fast-Path Bypass",
+                model_confidence=confidence,
+                risk_score=risk_score,
+                severity=severity,
+                flow_metrics=el_metrics,
+                raw_features=raw_features,
+                contributing_factors=contributing,
+                directionality_state=dir_state,
+                directionality_score=dir_score,
+                directionality_confidence=dir_conf,
+                directionality_explanation=dir_explanation,
+            )
             return SecurityEvent(
                 event_id=event_id,
                 timestamp=now,
@@ -194,14 +240,14 @@ class DetectionEngine:
                 confidence_pct=round(confidence * 100, 1),
                 anomaly_score=anomaly_score,
                 contributing_factors=contributing,
-                flow_metrics={
-                    "packet_count": flow.packet_count,
-                    "byte_count": flow.byte_count,
-                    "duration": round(flow.duration, 4),
-                    "pkt_rate": round(raw_features["pkt_rate"], 2),
-                    "byte_rate": round(raw_features["byte_rate"], 2),
-                    "entropy": round(raw_features["entropy_pkt_len"], 3),
-                },
+                flow_metrics=el_metrics,
+                directionality_state=dir_state,
+                directionality_score=dir_score,
+                directionality_confidence=dir_conf,
+                directionality_explanation=dir_explanation,
+                baseline_5_20_result=b520_label,
+                is_excluded_from_unidirectional_security=False,
+                explanation=el_explanation.to_dict(),
             )
 
         raw_df = pd.DataFrame([raw_features])
@@ -229,10 +275,20 @@ class DetectionEngine:
             # Domain-Knowledge Guard: Inbound Server Traffic Cannot Be Data Exfiltration
             # When traffic originates from well-known server ports (443, 80, 8443, 8080) to client,
             # this represents a legitimate inbound download (streaming, file download, updates).
+            was_exfil_guarded = False
             if threat_type == "DATA_EXFILTRATION" and flow.src_port in (80, 443, 8080, 8443, 8000):
                 threat_type = "BENIGN"
                 confidence = 0.95
+                was_exfil_guarded = True
+
+            if was_exfil_guarded:
+                model_name = "Domain Knowledge Rule Guard"
+            elif getattr(self.classifier, "model_type", "random_forest") == "xgboost":
+                model_name = "XGBoost Classifier"
+            else:
+                model_name = "Random Forest Classifier"
         else:
+            model_name = "Baseline Heuristics Engine"
             # Fallback heuristic if models are not yet loaded
             if flow.tcp_syn_cnt > 0 and flow.tcp_ack_cnt == 0:
                 if flow.packet_count >= 20 and raw_features["pkt_rate"] > 50.0:
@@ -291,6 +347,54 @@ class DetectionEngine:
         if risk_eval["risk_score"] >= 35:
             self.threats_detected_count += 1
 
+        final_flow_metrics = {
+            "packet_count": flow.packet_count,
+            "byte_count": flow.byte_count,
+            "duration": round(flow.duration, 4),
+            "pkt_rate": round(raw_features["pkt_rate"], 2),
+            "byte_rate": round(raw_features["byte_rate"], 2),
+            "entropy": round(raw_features["entropy_pkt_len"], 3),
+        }
+
+        # Generate comprehensive, evidence-based AI threat explanation
+        try:
+            event_explanation = self.threat_explainer.explain_detection(
+                alert_id=event_id,
+                flow_id=flow_key,
+                threat_category=threat_type,
+                model_name=model_name,
+                model_confidence=confidence,
+                risk_score=risk_eval["risk_score"],
+                severity=risk_eval["severity"],
+                risk_components=risk_eval.get("components"),
+                flow_metrics=final_flow_metrics,
+                raw_features=raw_features,
+                contributing_factors=contributing,
+                directionality_state=dir_state,
+                directionality_score=dir_score,
+                directionality_confidence=dir_conf,
+                directionality_explanation=dir_explanation,
+            )
+            explanation_payload = event_explanation.to_dict()
+        except Exception:
+            # Section 9 & 15: If explanation generation fails, never interrupt detection
+            explanation_payload = {
+                "alert_id": event_id,
+                "flow_id": flow_key,
+                "threat_category": threat_type,
+                "model_name": model_name,
+                "model_confidence": confidence,
+                "risk_score": risk_eval["risk_score"],
+                "severity": risk_eval["severity"],
+                "summary": "Explanation unavailable: insufficient supporting information.",
+                "observed_behavior": ["Flow analyzed by detection pipeline."],
+                "feature_contributions": [],
+                "directionality": {"state": dir_state, "explanation": "Directionality assessment unavailable."},
+                "risk_explanation": f"Assigned risk score of {risk_eval['risk_score']} ({risk_eval['severity']}).",
+                "investigation_suggestions": ["Review network flow metrics against baseline."],
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            }
+
         return SecurityEvent(
             event_id=event_id,
             timestamp=now,
@@ -306,18 +410,12 @@ class DetectionEngine:
             confidence_pct=risk_eval["confidence_pct"],
             anomaly_score=round(anomaly_score, 3),
             contributing_factors=contributing,
-            flow_metrics={
-                "packet_count": flow.packet_count,
-                "byte_count": flow.byte_count,
-                "duration": round(flow.duration, 4),
-                "pkt_rate": round(raw_features["pkt_rate"], 2),
-                "byte_rate": round(raw_features["byte_rate"], 2),
-                "entropy": round(raw_features["entropy_pkt_len"], 3),
-            },
+            flow_metrics=final_flow_metrics,
             directionality_state=dir_state,
             directionality_score=dir_score,
             directionality_confidence=dir_conf,
             directionality_explanation=dir_explanation,
             baseline_5_20_result=b520_label,
             is_excluded_from_unidirectional_security=False,
+            explanation=explanation_payload,
         )

@@ -65,7 +65,8 @@ class SecurityDatabase:
                     directionality_score REAL DEFAULT 0.0,
                     directionality_confidence REAL DEFAULT 0.0,
                     baseline_5_20_result TEXT DEFAULT 'N/A',
-                    is_excluded INTEGER DEFAULT 0
+                    is_excluded INTEGER DEFAULT 0,
+                    explanation_json TEXT DEFAULT '{}'
                 );
             """)
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_timestamp ON security_events(timestamp);")
@@ -118,6 +119,7 @@ class SecurityDatabase:
                 ("directionality_confidence", "REAL DEFAULT 0.0"),
                 ("baseline_5_20_result", "TEXT DEFAULT 'N/A'"),
                 ("is_excluded", "INTEGER DEFAULT 0"),
+                ("explanation_json", "TEXT DEFAULT '{}'"),
             ]:
                 try:
                     cursor.execute(f"ALTER TABLE security_events ADD COLUMN {col} {col_type};")
@@ -156,6 +158,7 @@ class SecurityDatabase:
                 getattr(e, "directionality_confidence", 0.0),
                 getattr(e, "baseline_5_20_result", "N/A"),
                 1 if getattr(e, "is_excluded_from_unidirectional_security", False) else 0,
+                json.dumps(getattr(e, "explanation", {}) or {}),
             )
             for e in events
         ]
@@ -168,8 +171,8 @@ class SecurityDatabase:
                     proto, threat_type, risk_score, severity, confidence_pct,
                     anomaly_score, contributing_factors, flow_metrics,
                     directionality_state, directionality_score, directionality_confidence,
-                    baseline_5_20_result, is_excluded
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    baseline_5_20_result, is_excluded, explanation_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 records,
             )
@@ -192,8 +195,18 @@ class SecurityDatabase:
             events = []
             for row in rows:
                 item = dict(row)
-                item["contributing_factors"] = json.loads(item["contributing_factors"])
-                item["flow_metrics"] = json.loads(item["flow_metrics"])
+                try:
+                    item["contributing_factors"] = json.loads(item["contributing_factors"])
+                except Exception:
+                    item["contributing_factors"] = []
+                try:
+                    item["flow_metrics"] = json.loads(item["flow_metrics"])
+                except Exception:
+                    item["flow_metrics"] = {}
+                try:
+                    item["explanation"] = json.loads(item.get("explanation_json", "{}") or "{}")
+                except Exception:
+                    item["explanation"] = {}
                 item.setdefault("directionality_state", "UNKNOWN")
                 item.setdefault("directionality_score", 0.0)
                 item.setdefault("directionality_confidence", 0.0)
@@ -245,6 +258,10 @@ class SecurityDatabase:
                     item["flow_metrics"] = json.loads(item["flow_metrics"])
                 except Exception:
                     item["flow_metrics"] = {}
+                try:
+                    item["explanation"] = json.loads(item.get("explanation_json", "{}") or "{}")
+                except Exception:
+                    item["explanation"] = {}
                 item.setdefault("directionality_state", "UNKNOWN")
                 item.setdefault("directionality_score", 0.0)
                 item.setdefault("directionality_confidence", 0.0)
@@ -252,6 +269,22 @@ class SecurityDatabase:
                 item.setdefault("is_excluded", 0)
                 events.append(item)
             return events
+
+    def get_event_explanation(self, event_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieves structured AI threat explanation for a specific event ID."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT explanation_json FROM security_events WHERE event_id = ? LIMIT 1",
+                (event_id,),
+            )
+            row = cursor.fetchone()
+            if row and row["explanation_json"]:
+                try:
+                    return json.loads(row["explanation_json"])
+                except Exception:
+                    return None
+            return None
 
     def get_summary_statistics(self) -> Dict[str, Any]:
         """Calculates aggregate statistics for the desktop dashboard header cards."""

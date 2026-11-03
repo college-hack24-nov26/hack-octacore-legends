@@ -2818,6 +2818,25 @@ Select a flow to view packet size dispersion, inter-arrival time burstiness, TCP
             </div>
           </div>
         </div>
+
+        <!-- AI Threat Explanation Engine: Why Was This Detected? -->
+        <div class="soc-card" style="margin-top:12px">
+          <div class="card-title" style="margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+            <span>Why Was This Detected? (AI Threat Explanation)</span>
+            <span id="modal-model-name" class="badge-tag" style="background:rgba(56,189,248,0.15); color:var(--accent-cyan); font-size:10px">Random Forest</span>
+          </div>
+          <div id="modal-ai-summary" style="font-size:11px; color:#cbd5e1; margin-bottom:8px; line-height:1.5; font-style:italic">--</div>
+          
+          <div style="font-size:11px; font-weight:600; color:var(--accent-purple); margin-bottom:4px">Factual Observed Behavior:</div>
+          <ul id="modal-ai-behavior" style="font-size:11px; color:var(--text-secondary); padding-left:16px; margin-bottom:10px; line-height:1.4">
+            <li>Loading behavioral observations...</li>
+          </ul>
+
+          <div style="font-size:11px; font-weight:600; color:var(--accent-cyan); margin-bottom:4px">Defensive SOC Next Steps:</div>
+          <ul id="modal-ai-suggestions" style="font-size:11px; color:#94a3b8; padding-left:16px; line-height:1.4">
+            <li>Review alert telemetry and investigate destination ports.</li>
+          </ul>
+        </div>
       </div>
 
       <!-- =====================================================================
