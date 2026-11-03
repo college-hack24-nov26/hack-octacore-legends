@@ -1,0 +1,37 @@
+{
+  "classes": [
+    "BENIGN",
+    "DATA_EXFILTRATION",
+    "PORT_SCAN",
+    "SLOWLORIS",
+    "SYN_FLOOD"
+  ],
+  "features": [
+    "proto",
+    "dst_port",
+    "src_port",
+    "pkt_count",
+    "byte_count",
+    "duration",
+    "pkt_rate",
+    "byte_rate",
+    "pkt_len_mean",
+    "pkt_len_std",
+    "pkt_len_min",
+    "pkt_len_max",
+    "iat_mean",
+    "iat_std",
+    "iat_min",
+    "iat_max",
+    "tcp_syn_cnt",
+    "tcp_psh_cnt",
+    "tcp_ack_cnt",
+    "tcp_fin_cnt",
+    "tcp_rst_cnt",
+    "tcp_urg_cnt",
+    "entropy_pkt_len",
+    "burstiness"
+  ],
+  "rf_f1": 1.0,
+  "xgb_f1": 1.0
+}

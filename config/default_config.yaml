@@ -1,0 +1,84 @@
+# UniGuard AI Configuration Profile
+# Smart India Hackathon (SIH) 2026
+
+system:
+  app_name: "UniGuard AI"
+  version: "0.1.0-alpha"
+  mode: "offline" # options: "offline" (pcap replay), "synthetic", "live"
+  log_level: "INFO"
+
+flow_engine:
+  # Inactivity timeout in seconds: flow is evicted if no packets seen for this duration
+  idle_timeout_seconds: 15.0
+  # Active timeout in seconds: long-running flow emits partial snapshot to detect sustained attacks
+  active_timeout_seconds: 60.0
+  # Maximum concurrent tracked flows in memory before forced LRU purge
+  max_tracked_flows: 100000
+  # Strict unidirectional enforcement: True prevents reverse packet flow fusion
+  strict_unidirectional: true
+
+features:
+  # The strict 24 unidirectional feature schema
+  feature_list:
+    - proto
+    - dst_port
+    - src_port
+    - pkt_count
+    - byte_count
+    - duration
+    - pkt_rate
+    - byte_rate
+    - pkt_len_mean
+    - pkt_len_std
+    - pkt_len_min
+    - pkt_len_max
+    - iat_mean
+    - iat_std
+    - iat_min
+    - iat_max
+    - tcp_syn_cnt
+    - tcp_psh_cnt
+    - tcp_ack_cnt
+    - tcp_fin_cnt
+    - tcp_rst_cnt
+    - tcp_urg_cnt
+    - entropy_pkt_len
+    - burstiness
+
+detection:
+  # Supervised classifier threshold for threat alerting
+  threat_confidence_threshold: 0.65
+  # Anomaly score threshold (normalized 0.0 - 1.0)
+  anomaly_threshold: 0.70
+  # Risk weights: w1(classifier), w2(anomaly), w3(category), w4(volume impact)
+  risk_weights:
+    w_classifier: 0.40
+    w_anomaly: 0.30
+    w_category: 0.20
+    w_impact: 0.10
+
+database:
+  db_path: "uniguard_events.db"
+
+directionality:
+  # Enable unsupervised flow directionality & asymmetry engine
+  enabled: true
+  # Minimum packets before assigning classified directionality state
+  min_observation_packets: 3
+  # Minimum duration (seconds) before committing to a decision
+  min_observation_duration_seconds: 0.05
+  # Operational mode: "monitoring", "learning", or "adaptive"
+  mode: "monitoring"
+  # Asymmetry threshold for strong asymmetry state
+  strong_asymmetry_threshold: 0.75
+  # Asymmetry threshold for moderate asymmetry state
+  asymmetry_threshold: 0.45
+  # Auto-discover local network endpoints (IPv4/IPv6, VPNs, NICs)
+  auto_discover_local_endpoints: true
+  # Evaluate 5/20 baseline comparator in parallel for SIH research
+  enable_5_20_baseline_comparison: true
+
+ui:
+  theme: "dark_soc"
+  refresh_rate_ms: 1000
+  max_table_alerts: 500

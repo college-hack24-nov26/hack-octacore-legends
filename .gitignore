@@ -1,0 +1,60 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Large Dataset files and PCAPs
+*.pcap
+*.pcapng
+*.cap
+data/raw/
+data/processed/*.csv
+!data/samples/sample_unidirectional.pcap
+
+# Machine learning model binaries
+models_saved/*.joblib
+models_saved/*.pkl
+models_saved/*.json
+models_saved/*.bin
+
+# SQLite database
+*.sqlite3
+*.db
+
+# Logs and test artifacts
+*.log
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE files
+.vscode/
+.idea/

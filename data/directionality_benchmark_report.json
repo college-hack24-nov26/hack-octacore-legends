@@ -1,0 +1,47 @@
+{
+  "timestamp": 1789388981.001728,
+  "total_flows": 5000,
+  "downloads_total": 1900,
+  "method_1_5_20_heuristic": {
+    "tp": 1075,
+    "fp": 0,
+    "tn": 3500,
+    "fn": 425,
+    "precision": 1.0,
+    "recall": 0.7167,
+    "f1_score": 0.835,
+    "fpr": 0.0,
+    "fnr": 0.2833,
+    "latency_us": 27.41,
+    "downloads_false_positives": 0,
+    "downloads_fpr": 0.0
+  },
+  "method_2_statistical_asymmetry": {
+    "tp": 1500,
+    "fp": 778,
+    "tn": 2722,
+    "fn": 0,
+    "precision": 0.6585,
+    "recall": 1.0,
+    "f1_score": 0.7941,
+    "fpr": 0.2223,
+    "fnr": 0.0,
+    "latency_us": 29.15,
+    "downloads_false_positives": 778,
+    "downloads_fpr": 0.4095
+  },
+  "method_3_unsupervised_directionality_engine": {
+    "tp": 1485,
+    "fp": 0,
+    "tn": 3500,
+    "fn": 15,
+    "precision": 1.0,
+    "recall": 0.99,
+    "f1_score": 0.995,
+    "fpr": 0.0,
+    "fnr": 0.01,
+    "latency_us": 6015.96,
+    "downloads_false_positives": 0,
+    "downloads_fpr": 0.0
+  }
+}
