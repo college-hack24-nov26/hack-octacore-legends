@@ -76,13 +76,16 @@ class DetectionEngine:
         self.events_processed_count: int = 0
         self.threats_detected_count: int = 0
         self.threat_explainer = AIThreatExplanationEngine(explainer=self.explainer)
+        self._host_syn_targets: Dict[Tuple[str, str], Dict[str, Any]] = {}
 
     def analyze_flow(self, flow: UnidirectionalFlow, skip_shap: bool = False) -> SecurityEvent:
         """Analyzes a completed flow through the full AI and directionality pipeline."""
         self.events_processed_count += 1
         now = time.time()
         event_id = f"EVT-{int(now * 1000)}-{self.events_processed_count:05d}"
-        flow_key = f"{flow.src_ip}:{flow.src_port} -> {flow.dst_ip}:{flow.dst_port} [P{flow.proto}]"
+        proto_map = {6: "TCP", 17: "UDP", 1: "ICMP"}
+        proto_name = proto_map.get(int(flow.proto), f"P{flow.proto}")
+        flow_key = f"{flow.src_ip}:{flow.src_port} -> {flow.dst_ip}:{flow.dst_port} [{proto_name}]"
 
         # Directionality Metadata Extraction
         raw_dir_score = getattr(flow, "directionality_score", None)
@@ -271,22 +274,7 @@ class DetectionEngine:
             else:
                 threat_type = str(y_pred)
             confidence = float(np.max(y_proba))
-
-            # Domain-Knowledge Guard: Inbound Server Traffic Cannot Be Data Exfiltration
-            # When traffic originates from well-known server ports (443, 80, 8443, 8080) to client,
-            # this represents a legitimate inbound download (streaming, file download, updates).
-            was_exfil_guarded = False
-            if threat_type == "DATA_EXFILTRATION" and flow.src_port in (80, 443, 8080, 8443, 8000):
-                threat_type = "BENIGN"
-                confidence = 0.95
-                was_exfil_guarded = True
-
-            if was_exfil_guarded:
-                model_name = "Domain Knowledge Rule Guard"
-            elif getattr(self.classifier, "model_type", "random_forest") == "xgboost":
-                model_name = "XGBoost Classifier"
-            else:
-                model_name = "Random Forest Classifier"
+            model_name = "XGBoost Classifier" if getattr(self.classifier, "model_type", "random_forest") == "xgboost" else "Random Forest Classifier"
         else:
             model_name = "Baseline Heuristics Engine"
             # Fallback heuristic if models are not yet loaded
@@ -303,6 +291,55 @@ class DetectionEngine:
             else:
                 threat_type = "BENIGN"
                 confidence = 0.95
+
+        # -------------------------------------------------------------
+        # Universal Domain-Knowledge & Multi-Flow Host Correlation Guards
+        # -------------------------------------------------------------
+        was_guarded = False
+
+        # Domain-Knowledge Guard: Inbound Server Traffic Cannot Be Data Exfiltration
+        # When traffic originates from well-known server ports (443, 80, 8443, 8080) to client,
+        # this represents a legitimate inbound download (streaming, file download, updates).
+        if threat_type == "DATA_EXFILTRATION" and flow.src_port in (80, 443, 8080, 8443, 8000):
+            threat_type = "BENIGN"
+            confidence = 0.95
+            was_guarded = True
+
+        # Domain-Knowledge Guard: Isolated DNS queries are Benign
+        # Standard DNS queries from client to recursive resolver (UDP port 53)
+        # are standard network infrastructure traffic, not a port scan.
+        elif flow.proto == 17 and flow.dst_port == 53 and flow.packet_count <= 2:
+            threat_type = "BENIGN"
+            confidence = 0.95
+            was_guarded = True
+
+        # Host-level Multi-Flow Correlation: Distinguish SYN Flood from Port Scan
+        # If multiple connection requests from the same source target the same destination port,
+        # this is a SYN Flood / DoS burst, NOT a port scan. A port scan targets multiple ports.
+        if flow.proto == 6 and flow.tcp_syn_cnt > 0 and flow.tcp_ack_cnt == 0:
+            host_key = (flow.src_ip, flow.dst_ip)
+            if host_key not in self._host_syn_targets:
+                self._host_syn_targets[host_key] = {"ports": set(), "count_per_port": {}, "last_seen": now}
+
+            track_info = self._host_syn_targets[host_key]
+            track_info["last_seen"] = now
+            track_info["ports"].add(flow.dst_port)
+            track_info["count_per_port"][flow.dst_port] = track_info["count_per_port"].get(flow.dst_port, 0) + 1
+
+            port_hit_count = track_info["count_per_port"][flow.dst_port]
+            unique_ports = len(track_info["ports"])
+
+            if port_hit_count >= 3 and unique_ports == 1:
+                threat_type = "SYN_FLOOD"
+                confidence = max(confidence, 0.95)
+                was_guarded = True
+            elif unique_ports >= 3 and threat_type != "SYN_FLOOD":
+                threat_type = "PORT_SCAN"
+                confidence = max(confidence, 0.92)
+                was_guarded = True
+
+        if was_guarded:
+            model_name = "Domain Knowledge & Correlation Guard"
 
         # 4. Anomaly Detection
         if self.anomaly_detector is not None and self.anomaly_detector.is_fitted:

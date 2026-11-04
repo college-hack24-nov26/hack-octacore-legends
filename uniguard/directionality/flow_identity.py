@@ -37,7 +37,9 @@ class CanonicalFlowKey:
             return cls(endpoint_low=ep2, endpoint_high=ep1, proto=proto)
 
     def to_string(self) -> str:
-        return f"{self.endpoint_low[0]}:{self.endpoint_low[1]} <-> {self.endpoint_high[0]}:{self.endpoint_high[1]} [P{self.proto}]"
+        proto_map = {6: "TCP", 17: "UDP", 1: "ICMP"}
+        proto_str = proto_map.get(self.proto, f"P{self.proto}")
+        return f"{self.endpoint_low[0]}:{self.endpoint_low[1]} <-> {self.endpoint_high[0]}:{self.endpoint_high[1]} [{proto_str}]"
 
 
 class DirectionalCounters:
@@ -84,12 +86,12 @@ class DirectionalCounters:
     @property
     def packet_rate(self) -> float:
         dur = self.duration
-        return (float(self.packet_count) / dur) if dur > 1e-6 else float(self.packet_count)
+        return (float(self.packet_count) / dur) if (dur > 1e-6 and self.packet_count > 1) else 0.0
 
     @property
     def byte_rate(self) -> float:
         dur = self.duration
-        return (float(self.byte_count) / dur) if dur > 1e-6 else float(self.byte_count)
+        return (float(self.byte_count) / dur) if (dur > 1e-6 and self.packet_count > 1) else 0.0
 
     @property
     def pkt_len_std(self) -> float:

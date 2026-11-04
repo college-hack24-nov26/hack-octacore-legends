@@ -18,6 +18,7 @@ from uniguard.models.supervised import SupervisedThreatClassifier
 from uniguard.models.anomaly import IsolationForestAnomalyDetector
 from uniguard.risk.scorer import RiskScorer
 from uniguard.detection.engine import DetectionEngine
+from uniguard.detection.correlator import SecurityIncidentCorrelator, format_protocol
 from uniguard.database.storage import SecurityDatabase
 
 
@@ -89,40 +90,94 @@ def run_analysis(
     print(f"    - Bidirectional Flows Excluded: {stats.get('total_excluded_flows', 0)}")
     print(f"    - Directionality Distribution: {stats.get('directionality_distribution_pct', {})}")
     print("-" * 105)
-    header = f"{'FLOW (Src -> Dst:Port [Proto])':<35} | {'DIRECTIONALITY':<22} | {'THREAT TYPE':<15} | {'SEV':<8} | {'RISK':<4}"
+    header = f"{'FLOW (Src -> Dst:Port [Proto])':<36} | {'DIRECTIONALITY':<22} | {'THREAT TYPE':<15} | {'SEV':<8} | {'RISK':<4}"
     print(header)
     print("-" * 105)
 
+    all_events = []
     detected_alerts = []
 
     for flow in completed_flows:
         # Run through detection engine
         event = detection_engine.analyze_flow(flow)
         database.insert_event(event)
+        all_events.append(event)
 
-        flow_display = f"{flow.src_ip} -> {flow.dst_ip}:{flow.dst_port} [P{flow.proto}]"
+        proto_str = format_protocol(flow.proto)
+        flow_display = f"{flow.src_ip} -> {flow.dst_ip}:{flow.dst_port} [{proto_str}]"
         dir_display = f"{event.directionality_state} ({event.directionality_score:.2f})"
-        print(f"{flow_display:<35} | {dir_display:<22} | {event.threat_type:<15} | {event.severity:<8} | {event.risk_score:>3}/100")
+        print(f"{flow_display:<36} | {dir_display:<22} | {event.threat_type:<15} | {event.severity:<8} | {event.risk_score:>3}/100")
 
         if event.risk_score >= 35:
             detected_alerts.append(event)
 
-    print("=" * 85)
-    print(f" SUMMARY OF DETECTED SECURITY THREATS: {len(detected_alerts)} ALERTS GENERATED")
-    print("=" * 85)
+    # -------------------------------------------------------------
+    # Multi-Event Incident Correlation & Threat Aggregation
+    # -------------------------------------------------------------
+    correlator = SecurityIncidentCorrelator(time_window_sec=60.0)
+    incidents = correlator.correlate_events(all_events)
 
-    for alert in detected_alerts[:4]:
+    print("\n" + "=" * 95)
+    print(f" SECURITY INCIDENT CORRELATION & CAMPAIGN SUMMARY ({len(incidents)} INCIDENTS IDENTIFIED)")
+    print("=" * 95)
+    inc_header = f"{'INCIDENT ID':<22} | {'TYPE':<14} | {'ATTACKER -> VICTIM':<30} | {'FLOWS':<6} | {'SEV':<8} | {'RISK':<4}"
+    print(inc_header)
+    print("-" * 95)
+    for inc in incidents:
+        victim_str = f"{inc.dst_ip}:{inc.target_ports[0]}" if len(inc.target_ports) == 1 else f"{inc.dst_ip} ({len(inc.target_ports)} ports)"
+        target_summary = f"{inc.src_ip} -> {victim_str}"
+        print(f"{inc.incident_id:<22} | {inc.incident_type:<14} | {target_summary:<30} | {inc.event_count:<6} | {inc.severity:<8} | {inc.risk_score:>3}/100")
+
+    print("=" * 95)
+    for idx, inc in enumerate(incidents, 1):
+        print(f"\n[INCIDENT #{idx}] {inc.incident_type} (Severity: {inc.severity}, Risk: {inc.risk_score}/100)")
+        print(f"  Incident ID   : {inc.incident_id}")
+        print(f"  Attacker Host : {inc.src_ip}")
+        print(f"  Target Host   : {inc.dst_ip} [Protocol: {inc.protocol}]")
+        print(f"  Target Ports  : {inc.target_ports[:10]}{' ...' if len(inc.target_ports) > 10 else ''}")
+        print(f"  Impact Scope  : {inc.event_count} flows, {inc.packet_count} packets, {inc.byte_count:,} bytes across {inc.duration:.3f}s")
+        print(f"  Summary       : {inc.summary}")
+        print("  MITRE Tactics :")
+        for t in inc.tactics:
+            print(f"    * {t}")
+        print("  SOC Playbook  :")
+        for r in inc.recommendations:
+            print(f"    -> {r}")
+
+    # -------------------------------------------------------------
+    # Explainable AI (XAI) Behavioral Evidence Details
+    # -------------------------------------------------------------
+    print("\n" + "=" * 95)
+    print(" EXPLAINABLE AI (XAI) BEHAVIORAL ATTRIBUTION SAMPLES")
+    print("=" * 95)
+
+    # Show representative alert for each distinct threat type
+    shown_types = set()
+    sample_alerts = []
+    for alert in detected_alerts:
+        if alert.threat_type not in shown_types:
+            shown_types.add(alert.threat_type)
+            sample_alerts.append(alert)
+
+    # Supplement with first 2 alerts if less than 2 distinct types
+    for alert in detected_alerts:
+        if len(sample_alerts) >= 3:
+            break
+        if alert not in sample_alerts:
+            sample_alerts.append(alert)
+
+    for alert in sample_alerts:
         print(f"\n[!] ALERT: {alert.threat_type} (Severity: {alert.severity}, Risk: {alert.risk_score}/100, Confidence: {alert.confidence_pct}%)")
-        print(f"    Target: {alert.flow_key}")
-        print(f"    Metrics: {alert.flow_metrics}")
+        print(f"    Target Flow : {alert.flow_key}")
+        print(f"    Direction   : {alert.directionality_state} (Score: {alert.directionality_score:.2f}, Conf: {alert.directionality_confidence:.2f})")
+        print(f"    Flow Metrics: {alert.flow_metrics}")
         print("    Explainable AI (XAI) Contributing Behavioral Factors:")
         for factor in alert.contributing_factors:
             direction_symbol = "(+)" if factor.get("direction") == "RISK_INCREASING" else "(-)"
             print(f"      - {direction_symbol} {factor['feature']}: {factor.get('explanation', factor.get('value'))}")
 
-    if len(detected_alerts) > 4:
-        print(f"\n    ... and {len(detected_alerts) - 4} additional security events logged to database: '{db_path}'")
-    print("=" * 85)
+    print(f"\n[*] Total security events logged to database: {len(all_events)} ({len(detected_alerts)} elevated alerts) -> '{db_path}'")
+    print("=" * 95)
 
 
 if __name__ == "__main__":

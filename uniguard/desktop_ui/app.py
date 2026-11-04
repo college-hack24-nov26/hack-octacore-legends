@@ -658,6 +658,7 @@ class UniGuardDesktopApp(QMainWindow):
             "UNKNOWN": 0,
         }
         self.utie_suspicious_count: int = 0
+        self.active_quick_filter: str = "ALL"
 
         self.init_ui()
         self.setStyleSheet(DARK_STYLESHEET)
@@ -1732,19 +1733,25 @@ class UniGuardDesktopApp(QMainWindow):
     def setup_utie_tab(self) -> None:
         layout = QVBoxLayout(self.tab_utie)
         layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(10)
+        layout.setSpacing(8)
 
-        # A. UTIE Overview KPI Cards
-        kpi_box = QGroupBox("UNIDIRECTIONAL TRAFFIC INTELLIGENCE ENGINE (UTIE) - SIH 2026")
+        # ---------------------------------------------------------------------
+        # 1. Overview KPI Cards & Directionality Ratio Meter
+        # ---------------------------------------------------------------------
+        kpi_box = QGroupBox("UNIDIRECTIONAL TRAFFIC INTELLIGENCE ENGINE (UTIE) — SIH 2026")
+        kpi_box.setStyleSheet("QGroupBox { font-weight: bold; color: #00e5ff; border: 1px solid #1c2333; border-radius: 6px; margin-top: 4px; padding-top: 10px; }")
         kpi_layout = QVBoxLayout(kpi_box)
+        kpi_layout.setSpacing(6)
 
+        # KPI Cards Row
         card_row = QHBoxLayout()
+        card_row.setSpacing(8)
         self.card_utie_total = self.create_kpi_card("TOTAL ANALYZED", "0", "#00e5ff", "Total flows evaluated by UTIE")
-        self.card_utie_unidir = self.create_kpi_card("UNIDIRECTIONAL OBSERVED", "0", "#a855f7", "Pure one-way observed streams (0.0%)")
-        self.card_utie_bidir = self.create_kpi_card("BIDIRECTIONAL OBSERVED", "0", "#10b981", "Bilateral conversational sessions (0.0%)")
-        self.card_utie_asym = self.create_kpi_card("ASYMMETRIC OBSERVED", "0", "#f59e0b", "Directional asymmetry streams (0.0%)")
-        self.card_utie_insufficient = self.create_kpi_card("INSUFFICIENT DATA", "0", "#8b949e", "Short flows (<3 pkts / <0.05s) (0.0%)")
-        self.card_utie_suspicious = self.create_kpi_card("SUSPICIOUS FLOWS", "0", "#ef4444", "Anomalous, high-risk, or threat flows")
+        self.card_utie_unidir = self.create_kpi_card("UNIDIRECTIONAL OBSERVED", "0", "#a855f7", "Pure one-way streams (0.0%)")
+        self.card_utie_bidir = self.create_kpi_card("BIDIRECTIONAL OBSERVED", "0", "#10b981", "Bilateral sessions (0.0%)")
+        self.card_utie_asym = self.create_kpi_card("ASYMMETRIC OBSERVED", "0", "#f59e0b", "Directional asymmetry (0.0%)")
+        self.card_utie_insufficient = self.create_kpi_card("INSUFFICIENT DATA", "0", "#8b949e", "Short flows (<3 pkts) (0.0%)")
+        self.card_utie_suspicious = self.create_kpi_card("SUSPICIOUS FLOWS", "0", "#ef4444", "Anomalous / Threat flows")
 
         card_row.addWidget(self.card_utie_total)
         card_row.addWidget(self.card_utie_unidir)
@@ -1754,14 +1761,69 @@ class UniGuardDesktopApp(QMainWindow):
         card_row.addWidget(self.card_utie_suspicious)
         kpi_layout.addLayout(card_row)
 
-        # Distribution & Sensor Visibility Controls Bar
-        vis_row = QHBoxLayout()
-        self.lbl_utie_dist = QLabel("DIRECTIONALITY DISTRIBUTION:  UNIDIRECTIONAL: 0.0%  |  BIDIRECTIONAL: 0.0%  |  ASYMMETRIC: 0.0%  |  INSUFFICIENT: 0.0%")
-        self.lbl_utie_dist.setStyleSheet("color: #00e5ff; font-weight: bold; font-size: 8.5pt;")
-        vis_row.addWidget(self.lbl_utie_dist, stretch=2)
+        # Visual Directionality Segmented Ratio Meter + Live Chips
+        ratio_container = QWidget()
+        ratio_vbox = QVBoxLayout(ratio_container)
+        ratio_vbox.setContentsMargins(2, 2, 2, 2)
+        ratio_vbox.setSpacing(4)
 
-        # Sensor Topology Selector
-        vis_row.addWidget(QLabel("Sensor Topology:"), alignment=Qt.AlignRight)
+        self.bar_frame = QFrame()
+        self.bar_frame.setFixedHeight(10)
+        self.bar_frame.setStyleSheet("background-color: #161d2b; border-radius: 5px; border: 1px solid #283347;")
+        self.bar_layout = QHBoxLayout(self.bar_frame)
+        self.bar_layout.setContentsMargins(1, 1, 1, 1)
+        self.bar_layout.setSpacing(2)
+
+        self.seg_unidir = QFrame()
+        self.seg_unidir.setStyleSheet("background-color: #a855f7; border-radius: 3px;")
+        self.seg_bidir = QFrame()
+        self.seg_bidir.setStyleSheet("background-color: #10b981; border-radius: 3px;")
+        self.seg_asym = QFrame()
+        self.seg_asym.setStyleSheet("background-color: #f59e0b; border-radius: 3px;")
+        self.seg_insuf = QFrame()
+        self.seg_insuf.setStyleSheet("background-color: #64748b; border-radius: 3px;")
+
+        self.bar_layout.addWidget(self.seg_unidir, 1)
+        self.bar_layout.addWidget(self.seg_bidir, 1)
+        self.bar_layout.addWidget(self.seg_asym, 1)
+        self.bar_layout.addWidget(self.seg_insuf, 1)
+        ratio_vbox.addWidget(self.bar_frame)
+
+        # Chips row
+        chips_row = QHBoxLayout()
+        chips_row.setSpacing(8)
+        self.chip_unidir = QLabel("🟣 Unidirectional: 0 (0.0%)")
+        self.chip_unidir.setStyleSheet("background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 8pt;")
+        self.chip_bidir = QLabel("🟢 Bidirectional: 0 (0.0%)")
+        self.chip_bidir.setStyleSheet("background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 8pt;")
+        self.chip_asym = QLabel("🟠 Asymmetric: 0 (0.0%)")
+        self.chip_asym.setStyleSheet("background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 8pt;")
+        self.chip_insuf = QLabel("⚪ Insufficient: 0 (0.0%)")
+        self.chip_insuf.setStyleSheet("background: rgba(100, 116, 139, 0.15); color: #94a3b8; border: 1px solid rgba(100, 116, 139, 0.4); padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 8pt;")
+
+        chips_row.addWidget(self.chip_unidir)
+        chips_row.addWidget(self.chip_bidir)
+        chips_row.addWidget(self.chip_asym)
+        chips_row.addWidget(self.chip_insuf)
+        chips_row.addStretch()
+
+        self.lbl_utie_dist = QLabel("DIRECTIONALITY DISTRIBUTION:  UNIDIRECTIONAL: 0.0%  |  BIDIRECTIONAL: 0.0%  |  ASYMMETRIC: 0.0%  |  INSUFFICIENT: 0.0%")
+        self.lbl_utie_dist.setVisible(False)
+        chips_row.addWidget(self.lbl_utie_dist)
+        ratio_vbox.addLayout(chips_row)
+        kpi_layout.addWidget(ratio_container)
+
+        # ---------------------------------------------------------------------
+        # 2. Sensor Observation Topology & Hardware Diode Enforcement Bar
+        # ---------------------------------------------------------------------
+        sensor_bar = QHBoxLayout()
+        sensor_bar.setContentsMargins(4, 2, 4, 2)
+        sensor_bar.setSpacing(10)
+
+        lbl_topo_icon = QLabel("📡 <b>Observation Point:</b>")
+        lbl_topo_icon.setStyleSheet("color: #c9d1d9; font-size: 8.5pt;")
+        sensor_bar.addWidget(lbl_topo_icon)
+
         self.combo_sensor_point = QComboBox()
         self.combo_sensor_point.addItems([
             "PROMISCUOUS_TAP",
@@ -1771,23 +1833,72 @@ class UniGuardDesktopApp(QMainWindow):
             "GATEWAY_INLINE",
             "UNKNOWN",
         ])
-        vis_row.addWidget(self.combo_sensor_point)
+        self.combo_sensor_point.setStyleSheet("background-color: #0f141c; color: #c9d1d9; border: 1px solid #2d3748; padding: 3px 8px; border-radius: 4px;")
+        sensor_bar.addWidget(self.combo_sensor_point)
 
-        self.chk_sensor_diode = QCheckBox("Hardware Diode Enforced")
-        self.chk_sensor_diode.setStyleSheet("color: #a855f7; font-weight: 600;")
-        vis_row.addWidget(self.chk_sensor_diode)
+        self.chk_sensor_diode = QCheckBox("Hardware Data Diode Enforced")
+        self.chk_sensor_diode.setStyleSheet("color: #a855f7; font-weight: bold; font-size: 8.5pt;")
+        sensor_bar.addWidget(self.chk_sensor_diode)
 
-        self.btn_apply_sensor = QPushButton("Update Sensor Mode")
+        self.btn_apply_sensor = QPushButton("Apply Topology")
+        self.btn_apply_sensor.setStyleSheet("background-color: #0284c7; color: #ffffff; font-weight: bold; padding: 4px 12px; border-radius: 4px; border: none;")
         self.btn_apply_sensor.clicked.connect(self.apply_sensor_topology)
-        vis_row.addWidget(self.btn_apply_sensor)
+        sensor_bar.addWidget(self.btn_apply_sensor)
 
-        kpi_layout.addLayout(vis_row)
+        self.lbl_sensor_status_badge = QLabel("STATUS: PROMISCUOUS_TAP [BIDIRECTIONAL WIRETAP]")
+        self.lbl_sensor_status_badge.setStyleSheet("background: rgba(0, 229, 255, 0.12); color: #00e5ff; border: 1px solid rgba(0, 229, 255, 0.3); padding: 3px 10px; border-radius: 4px; font-weight: bold; font-size: 8pt;")
+        sensor_bar.addWidget(self.lbl_sensor_status_badge)
+        sensor_bar.addStretch()
+
+        kpi_layout.addLayout(sensor_bar)
         layout.addWidget(kpi_box)
 
-        # B. Filter Bar
+        # ---------------------------------------------------------------------
+        # 3. Filter Bar & Quick Filter Chips
+        # ---------------------------------------------------------------------
         filter_bar = QHBoxLayout()
+        filter_bar.setSpacing(6)
+
+        # Quick Filter Pills
+        self.btn_quick_all = QPushButton("All Flows")
+        self.btn_quick_unidir = QPushButton("⇥ Unidirectional")
+        self.btn_quick_bidir = QPushButton("⇄ Bidirectional")
+        self.btn_quick_suspicious = QPushButton("⚠️ Threats / High Risk")
+        self.btn_quick_anom = QPushButton("⚡ Anomalous")
+        self.btn_quick_asym = QPushButton("⇋ Asymmetric")
+
+        self.quick_filter_btns = [
+            self.btn_quick_all,
+            self.btn_quick_unidir,
+            self.btn_quick_bidir,
+            self.btn_quick_suspicious,
+            self.btn_quick_anom,
+            self.btn_quick_asym,
+        ]
+        for btn in self.quick_filter_btns:
+            btn.setCheckable(True)
+            btn.setStyleSheet(
+                "QPushButton { background-color: #161d2b; color: #c9d1d9; border: 1px solid #283347; padding: 4px 10px; border-radius: 4px; font-size: 8.5pt; font-weight: 600; }"
+                "QPushButton:hover { background-color: #1f293d; border-color: #38bdf8; }"
+                "QPushButton:checked { background-color: rgba(0, 229, 255, 0.2); color: #00e5ff; border: 1px solid #00e5ff; }"
+            )
+            filter_bar.addWidget(btn)
+
+        self.btn_quick_all.setChecked(True)
+        self.btn_quick_all.clicked.connect(lambda: self.set_quick_filter("ALL"))
+        self.btn_quick_unidir.clicked.connect(lambda: self.set_quick_filter("UNIDIR"))
+        self.btn_quick_bidir.clicked.connect(lambda: self.set_quick_filter("BIDIR"))
+        self.btn_quick_suspicious.clicked.connect(lambda: self.set_quick_filter("THREATS"))
+        self.btn_quick_anom.clicked.connect(lambda: self.set_quick_filter("ANOM"))
+        self.btn_quick_asym.clicked.connect(lambda: self.set_quick_filter("ASYM"))
+
+        filter_bar.addSpacing(6)
+
+        # Search box with clear button
         self.txt_utie_search = QLineEdit()
-        self.txt_utie_search.setPlaceholderText("Search by IP, Port, or Flow ID...")
+        self.txt_utie_search.setPlaceholderText("🔍 Search by IP, Port, or Flow ID...")
+        self.txt_utie_search.setClearButtonEnabled(True)
+        self.txt_utie_search.setStyleSheet("background-color: #0f141c; color: #c9d1d9; border: 1px solid #2d3748; padding: 4px 8px; border-radius: 4px;")
         self.txt_utie_search.textChanged.connect(self.filter_utie_table)
         filter_bar.addWidget(self.txt_utie_search, stretch=2)
 
@@ -1800,6 +1911,7 @@ class UniGuardDesktopApp(QMainWindow):
             "INSUFFICIENT_DATA",
             "UNKNOWN",
         ])
+        self.combo_filter_utie_dir.setStyleSheet("background-color: #0f141c; color: #c9d1d9; border: 1px solid #2d3748; padding: 3px 6px; border-radius: 4px;")
         self.combo_filter_utie_dir.currentIndexChanged.connect(self.filter_utie_table)
         filter_bar.addWidget(self.combo_filter_utie_dir)
 
@@ -1814,90 +1926,153 @@ class UniGuardDesktopApp(QMainWindow):
             "SLOWLORIS",
             "ANOMALOUS",
         ])
+        self.combo_filter_utie_threat.setStyleSheet("background-color: #0f141c; color: #c9d1d9; border: 1px solid #2d3748; padding: 3px 6px; border-radius: 4px;")
         self.combo_filter_utie_threat.currentIndexChanged.connect(self.filter_utie_table)
         filter_bar.addWidget(self.combo_filter_utie_threat)
 
-        self.btn_reset_utie = QPushButton("Reset Filters")
+        self.btn_load_history = QPushButton("🔄 Load DB History")
+        self.btn_load_history.setStyleSheet("background-color: #1e293b; color: #38bdf8; border: 1px solid #334155; padding: 4px 10px; border-radius: 4px; font-weight: 600;")
+        self.btn_load_history.clicked.connect(self.load_historical_utie_reports)
+        filter_bar.addWidget(self.btn_load_history)
+
+        self.btn_reset_utie = QPushButton("Reset")
+        self.btn_reset_utie.setStyleSheet("background-color: #161d2b; color: #8b949e; border: 1px solid #283347; padding: 4px 10px; border-radius: 4px;")
         self.btn_reset_utie.clicked.connect(self.reset_utie_filters)
         filter_bar.addWidget(self.btn_reset_utie)
 
         self.lbl_utie_table_count = QLabel("0 flows displayed")
-        self.lbl_utie_table_count.setStyleSheet("color: #6e7681; font-weight: bold;")
+        self.lbl_utie_table_count.setStyleSheet("color: #00e5ff; font-weight: bold; font-size: 8.5pt;")
         filter_bar.addWidget(self.lbl_utie_table_count)
         layout.addLayout(filter_bar)
 
-        # C. Splitter: Top = Flow Intelligence Table, Bottom = Flow Details Inspector
+        # ---------------------------------------------------------------------
+        # 4. Master Splitter: Flow Intelligence Table vs Forensic Inspector
+        # ---------------------------------------------------------------------
         splitter = QSplitter(Qt.Vertical)
 
         # Master UTIE Table
         self.table_utie = QTableWidget(0, 11)
         self.table_utie.setHorizontalHeaderLabels([
             "Flow ID",
-            "Source IP:Port",
-            "Destination IP:Port",
+            "Source Endpoint",
+            "Destination Endpoint",
             "Protocol",
-            "Directionality",
-            "Packets (Fwd/Rev)",
-            "Bytes (Fwd/Rev)",
+            "Directionality Verdict",
+            "Packets (Fwd / Rev)",
+            "Bytes (Fwd / Rev)",
             "Duration",
             "Anomaly Status",
-            "Threat Category",
+            "Threat Classification",
             "Risk Score",
         ])
-        self.table_utie.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table_utie.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.table_utie.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
         self.table_utie.setSelectionBehavior(QTableWidget.SelectRows)
         self.table_utie.setSelectionMode(QTableWidget.SingleSelection)
+        self.table_utie.setSortingEnabled(True)
+        self.table_utie.setStyleSheet(
+            "QTableWidget { background-color: #0a0d14; gridline-color: #161d2b; alternate-background-color: #0f141f; selection-background-color: #1f293d; font-size: 8.5pt; }"
+            "QHeaderView::section { background-color: #111724; color: #8b949e; font-weight: bold; font-size: 8pt; border: 1px solid #161d2b; padding: 4px 6px; }"
+        )
+        self.table_utie.setAlternatingRowColors(True)
         self.table_utie.cellClicked.connect(self.on_utie_table_row_clicked)
         splitter.addWidget(self.table_utie)
 
-        # Lower Detail Inspector
-        detail_container = QWidget()
-        detail_layout = QHBoxLayout(detail_container)
-        detail_layout.setContentsMargins(0, 5, 0, 0)
-        detail_layout.setSpacing(10)
+        # ---------------------------------------------------------------------
+        # 5. Lower Forensic Inspector (Tabbed Cybersecurity Panel)
+        # ---------------------------------------------------------------------
+        detail_container = QFrame()
+        detail_container.setStyleSheet("background-color: #080b11; border: 1px solid #1c2333; border-radius: 6px;")
+        detail_layout = QVBoxLayout(detail_container)
+        detail_layout.setContentsMargins(8, 8, 8, 8)
+        detail_layout.setSpacing(6)
 
-        # Left Detail Box: Directionality & Sensor Visibility Assessment
-        box_left = QGroupBox("DIRECTIONALITY ASSESSMENT & SENSOR VISIBILITY")
-        layout_left = QVBoxLayout(box_left)
-        layout_left.setSpacing(6)
+        # Selected Flow Header Bar
+        flow_header = QHBoxLayout()
+        flow_header.setSpacing(8)
 
-        header_score_row = QHBoxLayout()
+        self.lbl_flow_tuple = QLabel("5-TUPLE: Select any flow in the table above to view forensic directionality intelligence")
+        self.lbl_flow_tuple.setStyleSheet("color: #00e5ff; font-weight: bold; font-size: 9pt;")
+        flow_header.addWidget(self.lbl_flow_tuple, stretch=2)
+
         self.badge_utie_class = QLabel("DIRECTIONALITY: SELECT A FLOW")
-        self.badge_utie_class.setStyleSheet("background-color: #161d2b; color: #8b949e; border: 1px solid #283347; padding: 4px 10px; border-radius: 4px; font-weight: bold;")
-        header_score_row.addWidget(self.badge_utie_class)
+        self.badge_utie_class.setStyleSheet("background-color: #161d2b; color: #8b949e; border: 1px solid #283347; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 8pt;")
+        flow_header.addWidget(self.badge_utie_class)
 
-        header_score_row.addWidget(QLabel("Evidence Confidence:"), alignment=Qt.AlignRight)
+        lbl_conf_tag = QLabel("Evidence Confidence:")
+        lbl_conf_tag.setStyleSheet("color: #8b949e; font-size: 8pt; font-weight: 600;")
+        flow_header.addWidget(lbl_conf_tag)
+
         self.progress_utie_conf = QProgressBar()
         self.progress_utie_conf.setRange(0, 100)
         self.progress_utie_conf.setValue(0)
         self.progress_utie_conf.setTextVisible(True)
-        self.progress_utie_conf.setFormat("%v% (Evidence Score)")
-        self.progress_utie_conf.setStyleSheet("QProgressBar { background-color: #161d2b; border: 1px solid #283347; border-radius: 4px; text-align: center; color: #f0f6fc; } QProgressBar::chunk { background-color: #00e5ff; }")
-        header_score_row.addWidget(self.progress_utie_conf)
-        layout_left.addLayout(header_score_row)
+        self.progress_utie_conf.setFixedWidth(140)
+        self.progress_utie_conf.setFixedHeight(18)
+        self.progress_utie_conf.setFormat("%v% (Evidence)")
+        self.progress_utie_conf.setStyleSheet(
+            "QProgressBar { background-color: #161d2b; border: 1px solid #283347; border-radius: 4px; text-align: center; color: #f0f6fc; font-size: 7.5pt; font-weight: bold; }"
+            "QProgressBar::chunk { background-color: #00e5ff; border-radius: 3px; }"
+        )
+        flow_header.addWidget(self.progress_utie_conf)
 
+        self.badge_utie_risk = QLabel("RISK: --")
+        self.badge_utie_risk.setStyleSheet("background-color: #161d2b; color: #8b949e; border: 1px solid #283347; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 8pt;")
+        flow_header.addWidget(self.badge_utie_risk)
+
+        detail_layout.addLayout(flow_header)
+
+        # Tabbed Forensic Panels
+        self.tabs_utie_inspector = QTabWidget()
+        self.tabs_utie_inspector.setStyleSheet(
+            "QTabWidget::pane { border: 1px solid #1c2333; background: #0b0f17; border-radius: 4px; }"
+            "QTabBar::tab { background: #161d2b; color: #8b949e; padding: 5px 12px; margin-right: 2px; border-top-left-radius: 4px; border-top-right-radius: 4px; font-weight: 600; font-size: 8pt; }"
+            "QTabBar::tab:selected { background: #0b0f17; color: #00e5ff; border: 1px solid #1c2333; border-bottom: none; }"
+        )
+
+        # Tab 1: Forensic Directionality & Sensor Topology
+        tab_evidence = QWidget()
+        te_layout = QVBoxLayout(tab_evidence)
+        te_layout.setContentsMargins(6, 6, 6, 6)
         self.txt_utie_evidence = QTextEdit()
         self.txt_utie_evidence.setReadOnly(True)
-        self.txt_utie_evidence.setPlaceholderText("Select any flow in the table above to view supporting directionality evidence and sensor topology rationale...")
-        layout_left.addWidget(self.txt_utie_evidence, stretch=1)
-        detail_layout.addWidget(box_left, stretch=5)
+        self.txt_utie_evidence.setPlaceholderText("Select any flow in the table above to view supporting directionality evidence, sensor topology rationale, and reverse-path visibility analysis...")
+        self.txt_utie_evidence.setStyleSheet("background-color: #0b0f17; color: #c9d1d9; border: none; font-size: 8.5pt;")
+        te_layout.addWidget(self.txt_utie_evidence)
+        self.tabs_utie_inspector.addTab(tab_evidence, "🔬 Forensic Evidence & Sensor Topology")
 
-        # Right Detail Box: Behavioral Dynamics & SOC Playbook
-        box_right = QGroupBox("TRAFFIC BEHAVIOR DYNAMICS & SUGGESTED SOC INVESTIGATION")
-        layout_right = QVBoxLayout(box_right)
-        layout_right.setSpacing(6)
-
+        # Tab 2: Traffic Dynamics & Behavioral Signatures
+        tab_behavior = QWidget()
+        tb_layout = QVBoxLayout(tab_behavior)
+        tb_layout.setContentsMargins(6, 6, 6, 6)
         self.txt_utie_behavior = QTextEdit()
         self.txt_utie_behavior.setReadOnly(True)
-        self.txt_utie_behavior.setPlaceholderText("Select a flow to inspect packet length distributions, inter-arrival time burstiness, TCP flag patterns, and suggested triage steps...")
-        layout_right.addWidget(self.txt_utie_behavior, stretch=1)
-        detail_layout.addWidget(box_right, stretch=5)
+        self.txt_utie_behavior.setPlaceholderText("Select a flow to inspect packet length distributions, inter-arrival time burstiness, TCP flag patterns, and entropy dynamics...")
+        self.txt_utie_behavior.setStyleSheet("background-color: #0b0f17; color: #c9d1d9; border: none; font-size: 8.5pt;")
+        tb_layout.addWidget(self.txt_utie_behavior)
+        self.tabs_utie_inspector.addTab(tab_behavior, "📊 Traffic Dynamics & Behavioral Signatures")
 
+        # Tab 3: AI Threat Verdict & SOC Triage Playbook
+        tab_playbook = QWidget()
+        tp_layout = QVBoxLayout(tab_playbook)
+        tp_layout.setContentsMargins(6, 6, 6, 6)
+        self.txt_utie_playbook = QTextEdit()
+        self.txt_utie_playbook.setReadOnly(True)
+        self.txt_utie_playbook.setPlaceholderText("Select a flow to view multi-model AI threat categorization, Isolation Forest anomaly telemetry, and incident response playbooks...")
+        self.txt_utie_playbook.setStyleSheet("background-color: #0b0f17; color: #c9d1d9; border: none; font-size: 8.5pt;")
+        tp_layout.addWidget(self.txt_utie_playbook)
+        self.tabs_utie_inspector.addTab(tab_playbook, "🛡️ AI Threat Verdict & SOC Playbook")
+
+        detail_layout.addWidget(self.tabs_utie_inspector, stretch=1)
         splitter.addWidget(detail_container)
+
         splitter.setStretchFactor(0, 5)
-        splitter.setStretchFactor(1, 5)
+        splitter.setStretchFactor(1, 4)
         layout.addWidget(splitter, stretch=1)
 
+    # -------------------------------------------------------------------------
+    # UTIE Event Handlers & Data Processing
+    # -------------------------------------------------------------------------
     def apply_sensor_topology(self) -> None:
         """Applies operator configured observation point topology to UTIE."""
         pt_name = self.combo_sensor_point.currentText()
@@ -1913,7 +2088,155 @@ class UniGuardDesktopApp(QMainWindow):
         )
         bridge = SocStateBridge.get()
         bridge.utie_engine.set_sensor_context(ctx)
+
+        # Update badge
+        status_text = f"STATUS: {obs_pt.name} " + ("[HARDWARE DATA DIODE ACTIVE]" if is_diode else "[PASSIVE WIRETAP]")
+        self.lbl_sensor_status_badge.setText(status_text)
+        if is_diode:
+            self.lbl_sensor_status_badge.setStyleSheet("background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid #a855f7; padding: 3px 10px; border-radius: 4px; font-weight: bold; font-size: 8pt;")
+        else:
+            self.lbl_sensor_status_badge.setStyleSheet("background: rgba(0, 229, 255, 0.12); color: #00e5ff; border: 1px solid rgba(0, 229, 255, 0.3); padding: 3px 10px; border-radius: 4px; font-weight: bold; font-size: 8pt;")
+
         self.add_log(f"UTIE Sensor Visibility Topology updated: {obs_pt.value} (Diode Enforced={is_diode})", level="INFO")
+
+    def set_quick_filter(self, filter_code: str) -> None:
+        """Switches active quick filter pill and filters the table."""
+        self.active_quick_filter = filter_code
+        for btn in self.quick_filter_btns:
+            btn.setChecked(False)
+
+        if filter_code == "UNIDIR":
+            self.btn_quick_unidir.setChecked(True)
+        elif filter_code == "BIDIR":
+            self.btn_quick_bidir.setChecked(True)
+        elif filter_code == "THREATS":
+            self.btn_quick_suspicious.setChecked(True)
+        elif filter_code == "ANOM":
+            self.btn_quick_anom.setChecked(True)
+        elif filter_code == "ASYM":
+            self.btn_quick_asym.setChecked(True)
+        else:
+            self.btn_quick_all.setChecked(True)
+
+        self.filter_utie_table()
+
+    def update_utie_kpi_displays(self) -> None:
+        """Updates UTIE overview KPI cards and the multi-segment ratio bar."""
+        total = max(1, len(self.all_utie_reports))
+        unidir_cnt = self.utie_counts.get("UNIDIRECTIONAL_OBSERVED", 0)
+        bidir_cnt = self.utie_counts.get("BIDIRECTIONAL_OBSERVED", 0)
+        asym_cnt = self.utie_counts.get("ASYMMETRIC_OBSERVED", 0)
+        insuf_cnt = self.utie_counts.get("INSUFFICIENT_DATA", 0)
+
+        unidir_pct = (unidir_cnt / total) * 100.0
+        bidir_pct = (bidir_cnt / total) * 100.0
+        asym_pct = (asym_cnt / total) * 100.0
+        insuf_pct = (insuf_cnt / total) * 100.0
+
+        if hasattr(self, "card_utie_total") and hasattr(self.card_utie_total, "value_label"):
+            self.card_utie_total.value_label.setText(str(len(self.all_utie_reports)))
+        if hasattr(self, "card_utie_unidir") and hasattr(self.card_utie_unidir, "value_label"):
+            self.card_utie_unidir.value_label.setText(f"{unidir_cnt} ({unidir_pct:.1f}%)")
+        if hasattr(self, "card_utie_bidir") and hasattr(self.card_utie_bidir, "value_label"):
+            self.card_utie_bidir.value_label.setText(f"{bidir_cnt} ({bidir_pct:.1f}%)")
+        if hasattr(self, "card_utie_asym") and hasattr(self.card_utie_asym, "value_label"):
+            self.card_utie_asym.value_label.setText(f"{asym_cnt} ({asym_pct:.1f}%)")
+        if hasattr(self, "card_utie_insufficient") and hasattr(self.card_utie_insufficient, "value_label"):
+            self.card_utie_insufficient.value_label.setText(f"{insuf_cnt} ({insuf_pct:.1f}%)")
+        if hasattr(self, "card_utie_suspicious") and hasattr(self.card_utie_suspicious, "value_label"):
+            self.card_utie_suspicious.value_label.setText(str(self.utie_suspicious_count))
+
+        # Update ratio chips
+        if hasattr(self, "chip_unidir"):
+            self.chip_unidir.setText(f"🟣 Unidirectional: {unidir_cnt} ({unidir_pct:.1f}%)")
+        if hasattr(self, "chip_bidir"):
+            self.chip_bidir.setText(f"🟢 Bidirectional: {bidir_cnt} ({bidir_pct:.1f}%)")
+        if hasattr(self, "chip_asym"):
+            self.chip_asym.setText(f"🟠 Asymmetric: {asym_cnt} ({asym_pct:.1f}%)")
+        if hasattr(self, "chip_insuf"):
+            self.chip_insuf.setText(f"⚪ Insufficient: {insuf_cnt} ({insuf_pct:.1f}%)")
+
+        # Update segment bar stretch factors
+        if hasattr(self, "bar_layout"):
+            self.bar_layout.setStretch(0, max(1, int(unidir_pct)))
+            self.bar_layout.setStretch(1, max(1, int(bidir_pct)))
+            self.bar_layout.setStretch(2, max(1, int(asym_pct)))
+            self.bar_layout.setStretch(3, max(1, int(insuf_pct)))
+
+        if hasattr(self, "lbl_utie_dist"):
+            self.lbl_utie_dist.setText(
+                f"DIRECTIONALITY DISTRIBUTION:  UNIDIRECTIONAL: {unidir_pct:.1f}%  |  BIDIRECTIONAL: {bidir_pct:.1f}%  |  ASYMMETRIC: {asym_pct:.1f}%  |  INSUFFICIENT: {insuf_pct:.1f}%"
+            )
+
+    def load_historical_utie_reports(self) -> None:
+        """Loads historical UTIE flow intelligence reports from SQLite database."""
+        try:
+            records = self.database.get_recent_utie_reports(limit=250)
+            if not records:
+                return
+
+            self.all_utie_reports.clear()
+            self.utie_counts = {
+                "UNIDIRECTIONAL_OBSERVED": 0,
+                "BIDIRECTIONAL_OBSERVED": 0,
+                "ASYMMETRIC_OBSERVED": 0,
+                "INSUFFICIENT_DATA": 0,
+                "UNKNOWN": 0,
+            }
+            self.utie_suspicious_count = 0
+
+            for d in records:
+                sensor_vis = {
+                    "visibility_type": d.get("sensor_visibility_type", "UNKNOWN"),
+                    "is_reverse_missing": bool(d.get("is_reverse_missing", 0)),
+                    "reverse_missing_reason": "Single-path observation point" if d.get("is_reverse_missing") else "Normal bidirectional wiretap",
+                    "completeness_status": "ASYMMETRIC" if d.get("is_reverse_missing") else "COMPLETE",
+                    "confidence_penalty": 0.0,
+                    "sensor_notes": [f"Stored UTIE record from sensor topology: {d.get('sensor_visibility_type', 'UNKNOWN')}"],
+                }
+                rpt = UTIEIntelligenceReport(
+                    flow_id=d.get("flow_id", "N/A"),
+                    src_ip=d.get("src_ip", "0.0.0.0"),
+                    dst_ip=d.get("dst_ip", "0.0.0.0"),
+                    src_port=d.get("src_port", 0),
+                    dst_port=d.get("dst_port", 0),
+                    proto=d.get("proto", 6),
+                    proto_name=d.get("proto_name", "TCP"),
+                    directionality=d.get("directionality", "UNKNOWN"),
+                    directionality_confidence=float(d.get("directionality_confidence", 0.0)),
+                    directionality_evidence=d.get("directionality_evidence", []),
+                    sensor_visibility=sensor_vis,
+                    packet_count=d.get("packet_count", 0),
+                    reverse_packet_count=d.get("reverse_packet_count"),
+                    byte_count=d.get("byte_count", 0),
+                    reverse_byte_count=d.get("reverse_byte_count"),
+                    total_packet_count=(d.get("packet_count", 0) + (d.get("reverse_packet_count") or 0)),
+                    total_byte_count=(d.get("byte_count", 0) + (d.get("reverse_byte_count") or 0)),
+                    duration=float(d.get("duration", 0.0)),
+                    pkt_rate=float(d.get("pkt_rate", 0.0)),
+                    byte_rate=float(d.get("byte_rate", 0.0)),
+                    first_seen=float(d.get("timestamp", 0.0)),
+                    last_seen=float(d.get("timestamp", 0.0) + d.get("duration", 0.0)),
+                    traffic_behavior_summary=d.get("traffic_behavior_summary", {}),
+                    anomaly_status=d.get("anomaly_status", "NORMAL"),
+                    anomaly_score=float(d.get("anomaly_score", 0.0)),
+                    ml_threat_category=d.get("threat_category"),
+                    ml_confidence=0.9 if d.get("threat_category") and d.get("threat_category") != "BENIGN" else 0.5,
+                    risk_score=d.get("risk_score"),
+                    severity=d.get("severity"),
+                    suggested_investigation_steps=d.get("suggested_investigation_steps", []),
+                    analysis_timestamp=float(d.get("timestamp", time.time())),
+                )
+                self.all_utie_reports.append(rpt)
+                cls_name = rpt.directionality
+                self.utie_counts[cls_name] = self.utie_counts.get(cls_name, 0) + 1
+                if (rpt.risk_score and rpt.risk_score >= 40) or (rpt.ml_threat_category and rpt.ml_threat_category != "BENIGN") or rpt.anomaly_status == "ANOMALOUS":
+                    self.utie_suspicious_count += 1
+
+            self.update_utie_kpi_displays()
+            self.filter_utie_table()
+        except Exception:
+            pass
 
     def on_utie_report_received(self, report: UTIEIntelligenceReport) -> None:
         """Slot invoked on Qt GUI thread when a new UTIE intelligence report is generated."""
@@ -1942,41 +2265,34 @@ class UniGuardDesktopApp(QMainWindow):
         if is_suspicious:
             self.utie_suspicious_count += 1
 
-        total = max(1, len(self.all_utie_reports))
-        unidir_cnt = self.utie_counts.get("UNIDIRECTIONAL_OBSERVED", 0)
-        bidir_cnt = self.utie_counts.get("BIDIRECTIONAL_OBSERVED", 0)
-        asym_cnt = self.utie_counts.get("ASYMMETRIC_OBSERVED", 0)
-        insuf_cnt = self.utie_counts.get("INSUFFICIENT_DATA", 0)
-
-        unidir_pct = (unidir_cnt / total) * 100.0
-        bidir_pct = (bidir_cnt / total) * 100.0
-        asym_pct = (asym_cnt / total) * 100.0
-        insuf_pct = (insuf_cnt / total) * 100.0
-
-        if hasattr(self, "card_utie_total") and hasattr(self.card_utie_total, "value_label"):
-            self.card_utie_total.value_label.setText(str(total))
-        if hasattr(self, "card_utie_unidir") and hasattr(self.card_utie_unidir, "value_label"):
-            self.card_utie_unidir.value_label.setText(f"{unidir_cnt} ({unidir_pct:.1f}%)")
-        if hasattr(self, "card_utie_bidir") and hasattr(self.card_utie_bidir, "value_label"):
-            self.card_utie_bidir.value_label.setText(f"{bidir_cnt} ({bidir_pct:.1f}%)")
-        if hasattr(self, "card_utie_asym") and hasattr(self.card_utie_asym, "value_label"):
-            self.card_utie_asym.value_label.setText(f"{asym_cnt} ({asym_pct:.1f}%)")
-        if hasattr(self, "card_utie_insufficient") and hasattr(self.card_utie_insufficient, "value_label"):
-            self.card_utie_insufficient.value_label.setText(f"{insuf_cnt} ({insuf_pct:.1f}%)")
-        if hasattr(self, "card_utie_suspicious") and hasattr(self.card_utie_suspicious, "value_label"):
-            self.card_utie_suspicious.value_label.setText(str(self.utie_suspicious_count))
-
-        self.lbl_utie_dist.setText(
-            f"DIRECTIONALITY DISTRIBUTION:  UNIDIRECTIONAL: {unidir_pct:.1f}%  |  BIDIRECTIONAL: {bidir_pct:.1f}%  |  ASYMMETRIC: {asym_pct:.1f}%  |  INSUFFICIENT: {insuf_pct:.1f}%"
-        )
+        self.update_utie_kpi_displays()
 
         # Add to table if matches active filters
         self._add_utie_report_row(report, prepend=True)
         self.lbl_utie_table_count.setText(f"{self.table_utie.rowCount()} flows displayed")
 
     def _add_utie_report_row(self, report: UTIEIntelligenceReport, prepend: bool = True) -> None:
-        """Inserts a single row into the UTIE Flow Intelligence Table."""
-        # Check active filters
+        """Inserts a single styled row into the UTIE Flow Intelligence Table."""
+        # 1. Quick filter check
+        qf = getattr(self, "active_quick_filter", "ALL")
+        if qf == "UNIDIR" and "UNIDIRECTIONAL" not in report.directionality.upper():
+            return
+        elif qf == "BIDIR" and "BIDIRECTIONAL" not in report.directionality.upper():
+            return
+        elif qf == "ASYM" and "ASYMMETRIC" not in report.directionality.upper():
+            return
+        elif qf == "THREATS":
+            is_susp = (
+                (report.risk_score and report.risk_score >= 40)
+                or (report.ml_threat_category and report.ml_threat_category.upper() != "BENIGN")
+                or report.anomaly_status == "ANOMALOUS"
+            )
+            if not is_susp:
+                return
+        elif qf == "ANOM" and report.anomaly_status != "ANOMALOUS":
+            return
+
+        # 2. Text Search & Dropdown Filters
         search = self.txt_utie_search.text().lower().strip()
         dir_filter = self.combo_filter_utie_dir.currentText()
         threat_filter = self.combo_filter_utie_threat.currentText()
@@ -1988,6 +2304,7 @@ class UniGuardDesktopApp(QMainWindow):
                 or search in report.dst_ip.lower()
                 or search in str(report.src_port)
                 or search in str(report.dst_port)
+                or search in report.proto_name.lower()
             )
             if not match:
                 return
@@ -2000,39 +2317,108 @@ class UniGuardDesktopApp(QMainWindow):
             if cat.upper() != threat_filter:
                 return
 
+        self.table_utie.setSortingEnabled(False)
         row_idx = 0 if prepend else self.table_utie.rowCount()
         self.table_utie.insertRow(row_idx)
 
-        # Color & Visual Indicator
-        color_hex, badge_label, _ = report.get_visual_indicator()
-        text_color = QColor(color_hex)
+        # Directionality styling
+        dir_name = report.directionality.upper()
+        if "UNIDIRECTIONAL" in dir_name:
+            dir_display = "⇥ UNIDIRECTIONAL"
+            dir_color = QColor("#c084fc")
+        elif "BIDIRECTIONAL" in dir_name:
+            dir_display = "⇄ BIDIRECTIONAL"
+            dir_color = QColor("#34d399")
+        elif "ASYMMETRIC" in dir_name:
+            dir_display = "⇋ ASYMMETRIC"
+            dir_color = QColor("#fbbf24")
+        else:
+            dir_display = "? INSUFFICIENT"
+            dir_color = QColor("#94a3b8")
 
-        fwd_rev_pkts = f"{report.packet_count} / {report.reverse_packet_count if report.reverse_packet_count is not None else '--'}"
-        fwd_rev_bytes = f"{report.byte_count} / {report.reverse_byte_count if report.reverse_byte_count is not None else '--'}"
-        risk_str = str(report.risk_score) if report.risk_score is not None else "--"
+        # Fwd / Rev Pkts & Bytes
+        rev_pkts_str = str(report.reverse_packet_count) if report.reverse_packet_count is not None else "0 (None)"
+        fwd_rev_pkts = f"{report.packet_count:,} / {rev_pkts_str}"
 
-        items = [
-            QTableWidgetItem(report.flow_id),
-            QTableWidgetItem(f"{report.src_ip}:{report.src_port}"),
-            QTableWidgetItem(f"{report.dst_ip}:{report.dst_port}"),
-            QTableWidgetItem(report.proto_name),
-            QTableWidgetItem(report.directionality),
-            QTableWidgetItem(fwd_rev_pkts),
-            QTableWidgetItem(fwd_rev_bytes),
-            QTableWidgetItem(f"{report.duration:.3f}s"),
-            QTableWidgetItem(report.anomaly_status),
-            QTableWidgetItem(report.ml_threat_category or "BENIGN"),
-            QTableWidgetItem(risk_str),
-        ]
+        def fmt_bytes(b):
+            if b is None or b == 0:
+                return "0 B"
+            elif b >= 1048576:
+                return f"{b / 1048576:.1f} MB"
+            elif b >= 1024:
+                return f"{b / 1024:.1f} KB"
+            return f"{b} B"
 
+        fwd_rev_bytes = f"{fmt_bytes(report.byte_count)} / {fmt_bytes(report.reverse_byte_count)}"
+
+        # Anomaly Status
+        is_anom = report.anomaly_status == "ANOMALOUS"
+        anom_str = "⚡ ANOMALOUS" if is_anom else "NORMAL"
+        anom_color = QColor("#ef4444") if is_anom else QColor("#10b981")
+
+        # Threat Category
+        cat_str = report.ml_threat_category or "BENIGN"
+        is_threat = cat_str != "BENIGN"
+        threat_color = QColor("#f97316") if is_threat else QColor("#8b949e")
+
+        # Risk Score
+        risk_val = report.risk_score if report.risk_score is not None else 0
+        sev_val = (report.severity or "LOW").upper()
+        if risk_val >= 80 or sev_val == "CRITICAL":
+            risk_color = QColor("#ef4444")
+            risk_badge = f"{risk_val} [CRITICAL]"
+        elif risk_val >= 60 or sev_val == "HIGH":
+            risk_color = QColor("#f97316")
+            risk_badge = f"{risk_val} [HIGH]"
+        elif risk_val >= 35 or sev_val == "MEDIUM":
+            risk_color = QColor("#eab308")
+            risk_badge = f"{risk_val} [MED]"
+        else:
+            risk_color = QColor("#38bdf8")
+            risk_badge = f"{risk_val} [LOW]"
+
+        # Create table items
+        it_flow = QTableWidgetItem(report.flow_id)
+        it_flow.setForeground(QColor("#8b949e"))
+        it_flow.setFont(QFont("Consolas", 8))
+
+        it_src = QTableWidgetItem(f"{report.src_ip}:{report.src_port}")
+        it_dst = QTableWidgetItem(f"{report.dst_ip}:{report.dst_port}")
+        it_proto = QTableWidgetItem(report.proto_name)
+        it_proto.setTextAlignment(Qt.AlignCenter)
+
+        it_dir = QTableWidgetItem(dir_display)
+        it_dir.setForeground(dir_color)
+        it_dir.setFont(QFont("Segoe UI", 8.5, QFont.Bold))
+
+        it_pkts = QTableWidgetItem(fwd_rev_pkts)
+        it_bytes = QTableWidgetItem(fwd_rev_bytes)
+        it_dur = QTableWidgetItem(f"{report.duration:.3f}s")
+        it_dur.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+
+        it_anom = QTableWidgetItem(anom_str)
+        it_anom.setForeground(anom_color)
+        it_anom.setFont(QFont("Segoe UI", 8.5, QFont.Bold))
+        it_anom.setTextAlignment(Qt.AlignCenter)
+
+        it_threat = QTableWidgetItem(cat_str)
+        it_threat.setForeground(threat_color)
+        it_threat.setFont(QFont("Segoe UI", 8.5, QFont.Bold if is_threat else QFont.Normal))
+
+        it_risk = QTableWidgetItem(risk_badge)
+        it_risk.setForeground(risk_color)
+        it_risk.setFont(QFont("Segoe UI", 8.5, QFont.Bold))
+        it_risk.setTextAlignment(Qt.AlignCenter)
+
+        items = [it_flow, it_src, it_dst, it_proto, it_dir, it_pkts, it_bytes, it_dur, it_anom, it_threat, it_risk]
         for col, it in enumerate(items):
-            it.setForeground(text_color)
-            it.setFont(QFont("Segoe UI", 9))
             self.table_utie.setItem(row_idx, col, it)
 
         # Cap table rows at 400 for GUI performance
         if self.table_utie.rowCount() > 400:
             self.table_utie.removeRow(self.table_utie.rowCount() - 1)
+
+        self.table_utie.setSortingEnabled(True)
 
     def filter_utie_table(self) -> None:
         """Applies text and dropdown filters across all stored UTIE reports."""
@@ -2043,6 +2429,11 @@ class UniGuardDesktopApp(QMainWindow):
 
     def reset_utie_filters(self) -> None:
         """Resets all search inputs and filter combo boxes for UTIE."""
+        self.active_quick_filter = "ALL"
+        for btn in self.quick_filter_btns:
+            btn.setChecked(False)
+        self.btn_quick_all.setChecked(True)
+
         self.txt_utie_search.clear()
         self.combo_filter_utie_dir.setCurrentIndex(0)
         self.combo_filter_utie_threat.setCurrentIndex(0)
@@ -2062,85 +2453,227 @@ class UniGuardDesktopApp(QMainWindow):
 
         # 1. Update Directionality badge & Evidence score
         color_hex, badge_label, _ = report.get_visual_indicator()
-        self.badge_utie_class.setText(f"DIRECTIONALITY: {report.directionality}  [{badge_label}]")
-        self.badge_utie_class.setStyleSheet(f"background-color: rgba(22, 29, 43, 0.9); color: {color_hex}; border: 1px solid {color_hex}; padding: 4px 10px; border-radius: 4px; font-weight: bold;")
+        self.badge_utie_class.setText(f"VERDICT: {report.directionality} [{badge_label}]")
+        self.badge_utie_class.setStyleSheet(f"background-color: rgba(22, 29, 43, 0.9); color: {color_hex}; border: 1px solid {color_hex}; padding: 3px 8px; border-radius: 4px; font-weight: bold;")
 
         conf_pct = int(report.directionality_confidence * 100.0)
         self.progress_utie_conf.setValue(conf_pct)
 
-        # 2. Left Box: Directionality Evidence & Sensor Visibility
+        # Update flow tuple header
+        self.lbl_flow_tuple.setText(f"5-TUPLE: {report.src_ip}:{report.src_port} &rarr; {report.dst_ip}:{report.dst_port} [{report.proto_name} / Proto {report.proto}]")
+
+        # Update risk badge
+        r_val = report.risk_score if report.risk_score is not None else 0
+        r_sev = (report.severity or "INFORMATIONAL").upper()
+        if r_val >= 80 or r_sev == "CRITICAL":
+            r_border = "#ef4444"
+        elif r_val >= 60 or r_sev == "HIGH":
+            r_border = "#f97316"
+        elif r_val >= 35:
+            r_border = "#eab308"
+        else:
+            r_border = "#10b981"
+        self.badge_utie_risk.setText(f"COMPOSITE RISK: {r_val}/100 [{r_sev}]")
+        self.badge_utie_risk.setStyleSheet(f"background-color: rgba(22, 29, 43, 0.9); color: {r_border}; border: 1px solid {r_border}; padding: 3px 8px; border-radius: 4px; font-weight: bold;")
+
+        # ---------------------------------------------------------------------
+        # TAB 1: Forensic Directionality & Sensor Topology HTML
+        # ---------------------------------------------------------------------
         vis = report.sensor_visibility
         behavior = report.traffic_behavior_summary
 
-        evidence_text = f"""======================================================================
- UNIDIRECTIONAL TRAFFIC INTELLIGENCE ENGINE (UTIE) - DIRECTIONALITY EVIDENCE
-======================================================================
-Flow ID: {report.flow_id}
-5-Tuple: {report.src_ip}:{report.src_port} >> {report.dst_ip}:{report.dst_port}  [Protocol: {report.proto_name} ({report.proto})]
-Observation Window: {report.duration:.4f} seconds ({report.packet_count} forward packets, {report.byte_count} bytes)
-Directionality Classification: {report.directionality}
-Evidence Confidence Score: {report.directionality_confidence:.2%} (Calibrated scientific evidence)
+        evidence_html = f"""
+        <div style="font-family: 'Segoe UI', -apple-system, sans-serif; color: #c9d1d9; font-size: 9pt;">
+          <div style="background-color: #0f141c; border: 1px solid #1c2333; border-radius: 6px; padding: 10px; margin-bottom: 8px;">
+            <table width="100%" cellpadding="3" cellspacing="0">
+              <tr>
+                <td style="color: #00e5ff; font-weight: bold; font-size: 10pt;">
+                  FLOW 5-TUPLE: {report.src_ip}:{report.src_port} &rarr; {report.dst_ip}:{report.dst_port}
+                </td>
+                <td align="right" style="color: {color_hex}; font-weight: bold; font-size: 9.5pt;">
+                  VERDICT: {report.directionality}
+                </td>
+              </tr>
+              <tr>
+                <td style="color: #8b949e; font-size: 8.5pt;">
+                  Duration: <b style="color: #f0f6fc;">{report.duration:.4f}s</b> |
+                  Packets: <b style="color: #f0f6fc;">{report.packet_count} forward</b> / <b style="color: #f0f6fc;">{report.reverse_packet_count or 0} reverse</b> |
+                  Bytes: <b style="color: #f0f6fc;">{report.byte_count:,} forward</b>
+                </td>
+                <td align="right" style="color: #8b949e; font-size: 8.5pt;">
+                  Evidence Confidence: <b style="color: #00e5ff;">{report.directionality_confidence:.2%}</b>
+                </td>
+              </tr>
+            </table>
+          </div>
 
-[EVIDENCE RATIONALE]:
-"""
+          <div style="font-weight: bold; color: #38bdf8; font-size: 9pt; margin: 6px 0px 4px 0px;">
+            🔍 FORENSIC EVIDENCE & DIRECTIONALITY RATIONALE:
+          </div>
+        """
         for bullet in report.directionality_evidence:
-            evidence_text += f"  * {bullet}\n"
+            evidence_html += f"""
+            <div style="background-color: #0d1117; border-left: 3px solid #a855f7; border: 1px solid #1f293d; border-radius: 4px; padding: 6px 10px; margin-bottom: 4px;">
+              <span style="color: #a855f7; font-weight: bold;">[EVIDENCE RATIONALE]</span>
+              <span style="color: #f0f6fc; margin-left: 6px;">{bullet}</span>
+            </div>
+            """
 
-        evidence_text += f"""
-----------------------------------------------------------------------
- SENSOR VISIBILITY AWARENESS & CAPTURE CONTEXT
-----------------------------------------------------------------------
-Observation Topology: {vis.get('visibility_type', 'UNKNOWN')}
-Reverse Path Missing: {'YES (Unobserved on Wire)' if vis.get('is_reverse_missing') else 'NO (Return Traffic Captured)'}
-Missing Reason: {vis.get('reverse_missing_reason', 'N/A')}
-Completeness Status: {vis.get('completeness_status', 'UNKNOWN')}
-Confidence Penalty: -{vis.get('confidence_penalty', 0.0):.2f} (Sensor limitation deduction)
+        rev_missing = vis.get('is_reverse_missing')
+        rev_color = "#ef4444" if rev_missing else "#10b981"
+        rev_text = "YES (Missing / Unobserved On Wire)" if rev_missing else "NO (Return Traffic Captured)"
 
-[SENSOR TOPOLOGY NOTES]:
-"""
-        for note in vis.get("sensor_notes", []):
-            evidence_text += f"  > {note}\n"
+        evidence_html += f"""
+          <div style="font-weight: bold; color: #38bdf8; font-size: 9pt; margin: 10px 0px 4px 0px;">
+            📡 SENSOR VISIBILITY AWARENESS & CAPTURE TOPOLOGY:
+          </div>
+          <div style="background-color: #0f141c; border: 1px solid #1c2333; border-radius: 6px; padding: 8px;">
+            <table width="100%" cellpadding="3" cellspacing="0" style="font-size: 8.5pt;">
+              <tr>
+                <td width="25%" style="color: #8b949e;">Observation Topology:</td>
+                <td width="25%"><b style="color: #00e5ff;">{vis.get('visibility_type', 'UNKNOWN')}</b></td>
+                <td width="25%" style="color: #8b949e;">Reverse Path Status:</td>
+                <td width="25%"><b style="color: {rev_color};">{rev_text}</b></td>
+              </tr>
+              <tr>
+                <td style="color: #8b949e;">Reverse Missing Reason:</td>
+                <td><b style="color: #f0f6fc;">{vis.get('reverse_missing_reason', 'N/A')}</b></td>
+                <td style="color: #8b949e;">Topology Completeness:</td>
+                <td><b style="color: #f0f6fc;">{vis.get('completeness_status', 'UNKNOWN')}</b></td>
+              </tr>
+              <tr>
+                <td style="color: #8b949e;">Sensor Confidence Deduction:</td>
+                <td><b style="color: #f59e0b;">-{vis.get('confidence_penalty', 0.0):.2f}</b></td>
+                <td style="color: #8b949e;">Hardware Diode Enforced:</td>
+                <td><b style="color: {'#a855f7' if self.chk_sensor_diode.isChecked() else '#64748b'};">{'YES' if self.chk_sensor_diode.isChecked() else 'NO'}</b></td>
+              </tr>
+            </table>
+          </div>
+        """
 
-        self.txt_utie_evidence.setText(evidence_text)
+        if vis.get("sensor_notes"):
+            evidence_html += """<div style="margin-top: 6px; font-size: 8.5pt;">"""
+            for note in vis.get("sensor_notes", []):
+                evidence_html += f"""<div style="color: #8b949e; margin-bottom: 2px;">• <i style="color: #cbd5e1;">{note}</i></div>"""
+            evidence_html += "</div>"
 
-        # 3. Right Box: Behavioral Dynamics & SOC Triage Playbook
+        evidence_html += "</div>"
+        self.txt_utie_evidence.setHtml(evidence_html)
+
+        # ---------------------------------------------------------------------
+        # TAB 2: Traffic Dynamics & Behavioral Signatures HTML
+        # ---------------------------------------------------------------------
         pkt_stats = behavior.get("pkt_len_stats", {})
         timing = behavior.get("timing_dynamics", {})
         flag_details = behavior.get("flag_details", {})
+        is_beacon = timing.get("is_periodic_beacon")
 
-        behavior_text = f"""======================================================================
- TRAFFIC BEHAVIOR PROFILE & DYNAMICS
-======================================================================
-Packet Length Distribution:
-  Min: {pkt_stats.get('min', 0.0)} bytes  |  Max: {pkt_stats.get('max', 0.0)} bytes  |  Mean: {pkt_stats.get('mean', 0.0)} bytes  |  StdDev: {pkt_stats.get('std', 0.0)}
-  Size Homogeneity: {pkt_stats.get('homogeneity', 0.0):.2%} (100% = identical payload sizes / synthetic generator)
-  Shannon Packet Length Entropy: {behavior.get('entropy_pkt_len', 0.0):.3f} bits
+        behavior_html = f"""
+        <div style="font-family: 'Segoe UI', -apple-system, sans-serif; color: #c9d1d9; font-size: 9pt;">
+          <div style="font-weight: bold; color: #00e5ff; font-size: 9pt; margin-bottom: 4px;">
+            📦 PACKET LENGTH DISTRIBUTION & ENTROPY DYNAMICS:
+          </div>
+          <div style="background-color: #0f141c; border: 1px solid #1c2333; border-radius: 6px; padding: 8px; margin-bottom: 8px;">
+            <table width="100%" cellpadding="3" cellspacing="0" style="font-size: 8.5pt;">
+              <tr>
+                <td style="color: #8b949e;">Min Payload Size:</td>
+                <td><b style="color: #f0f6fc;">{pkt_stats.get('min', 0.0)} bytes</b></td>
+                <td style="color: #8b949e;">Max Payload Size:</td>
+                <td><b style="color: #f0f6fc;">{pkt_stats.get('max', 0.0)} bytes</b></td>
+                <td style="color: #8b949e;">Mean Size:</td>
+                <td><b style="color: #f0f6fc;">{pkt_stats.get('mean', 0.0):.1f} bytes</b></td>
+              </tr>
+              <tr>
+                <td style="color: #8b949e;">Size StdDev:</td>
+                <td><b style="color: #f0f6fc;">{pkt_stats.get('std', 0.0):.2f}</b></td>
+                <td style="color: #8b949e;">Payload Homogeneity:</td>
+                <td><b style="color: #38bdf8;">{pkt_stats.get('homogeneity', 0.0):.1%}</b></td>
+                <td style="color: #8b949e;">Shannon Entropy:</td>
+                <td><b style="color: #a855f7;">{behavior.get('entropy_pkt_len', 0.0):.3f} bits</b></td>
+              </tr>
+            </table>
+          </div>
 
-Timing Dynamics & Burstiness:
-  Packet Rate: {report.pkt_rate:.1f} pps  |  Byte Rate: {report.byte_rate:.1f} Bps
-  Inter-Arrival Time (IAT) Mean: {timing.get('iat_mean', 0.0):.4f}s  |  StdDev: {timing.get('iat_std', 0.0):.4f}s
-  Burstiness Index: {timing.get('burstiness_index', 0.0):.3f} (Variance-to-mean coefficient)
-  Periodic C2 Beaconing Detected: {'YES (Strict Periodic Pattern)' if timing.get('is_periodic_beacon') else 'NO (Normal Variance)'}
+          <div style="font-weight: bold; color: #00e5ff; font-size: 9pt; margin-bottom: 4px;">
+            ⏱️ TIMING DYNAMICS & BURSTINESS PROFILE:
+          </div>
+          <div style="background-color: #0f141c; border: 1px solid #1c2333; border-radius: 6px; padding: 8px; margin-bottom: 8px;">
+            <table width="100%" cellpadding="3" cellspacing="0" style="font-size: 8.5pt;">
+              <tr>
+                <td style="color: #8b949e;">Packet Rate:</td>
+                <td><b style="color: #10b981;">{report.pkt_rate:.1f} pps</b></td>
+                <td style="color: #8b949e;">Byte Rate:</td>
+                <td><b style="color: #10b981;">{report.byte_rate:.1f} Bps</b></td>
+                <td style="color: #8b949e;">Burstiness Index:</td>
+                <td><b style="color: #f59e0b;">{timing.get('burstiness_index', 0.0):.3f}</b></td>
+              </tr>
+              <tr>
+                <td style="color: #8b949e;">Mean Inter-Arrival Time:</td>
+                <td><b style="color: #f0f6fc;">{timing.get('iat_mean', 0.0):.4f}s</b></td>
+                <td style="color: #8b949e;">IAT StdDev:</td>
+                <td><b style="color: #f0f6fc;">{timing.get('iat_std', 0.0):.4f}s</b></td>
+                <td style="color: #8b949e;">Periodic Beacon:</td>
+                <td><b style="color: {'#ef4444' if is_beacon else '#10b981'};">{'STRICT PERIODIC BEACON' if is_beacon else 'NORMAL VARIANCE'}</b></td>
+              </tr>
+            </table>
+          </div>
 
-Protocol & TCP State:
-  Flag Signature Pattern: {behavior.get('flag_pattern', 'STANDARD')}
-  Flags Breakdown: SYN={flag_details.get('SYN', 0)}, ACK={flag_details.get('ACK', 0)}, FIN={flag_details.get('FIN', 0)}, RST={flag_details.get('RST', 0)}, PSH={flag_details.get('PSH', 0)}
+          <div style="font-weight: bold; color: #00e5ff; font-size: 9pt; margin-bottom: 4px;">
+            🚩 TCP CONTROL FLAGS & STATE SIGNATURE:
+          </div>
+          <div style="background-color: #0f141c; border: 1px solid #1c2333; border-radius: 6px; padding: 8px;">
+            <span style="color: #8b949e; font-size: 8.5pt;">Flag Pattern:</span>
+            <b style="color: #38bdf8; font-size: 9pt; margin-right: 14px;">{behavior.get('flag_pattern', 'STANDARD')}</b>
+            <span style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 8pt; margin-right: 6px;">SYN: {flag_details.get('SYN', 0)}</span>
+            <span style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4); padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 8pt; margin-right: 6px;">ACK: {flag_details.get('ACK', 0)}</span>
+            <span style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4); padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 8pt; margin-right: 6px;">FIN: {flag_details.get('FIN', 0)}</span>
+            <span style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 8pt; margin-right: 6px;">RST: {flag_details.get('RST', 0)}</span>
+            <span style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 8pt;">PSH: {flag_details.get('PSH', 0)}</span>
+          </div>
+        </div>
+        """
+        self.txt_utie_behavior.setHtml(behavior_html)
 
-----------------------------------------------------------------------
- AI DETECTION & MULTI-FACTOR RISK PRIORITIZATION
-----------------------------------------------------------------------
-Supervised Classifier: {report.ml_threat_category or 'BENIGN'}  (Confidence: {report.ml_confidence if report.ml_confidence is not None else 0.5:.1%})
-Isolation Forest Anomaly Status: {report.anomaly_status}  (Anomaly Score: {report.anomaly_score:.3f})
-Composite Risk Score: {report.risk_score if report.risk_score is not None else 0} / 100  |  Severity: {report.severity or 'INFORMATIONAL'}
+        # ---------------------------------------------------------------------
+        # TAB 3: AI Threat Verdict & SOC Triage Playbook HTML
+        # ---------------------------------------------------------------------
+        threat_cat = report.ml_threat_category or "BENIGN"
+        threat_col = "#ef4444" if threat_cat != "BENIGN" else "#10b981"
+        anom_stat = report.anomaly_status
+        anom_col = "#ef4444" if anom_stat == "ANOMALOUS" else "#10b981"
 
-----------------------------------------------------------------------
- SUGGESTED SOC INVESTIGATION PLAYBOOK
-----------------------------------------------------------------------
-"""
-        for step in report.suggested_investigation_steps:
-            behavior_text += f"{step}\n"
+        playbook_html = f"""
+        <div style="font-family: 'Segoe UI', -apple-system, sans-serif; color: #c9d1d9; font-size: 9pt;">
+          <div style="background-color: #0f141c; border: 1px solid #1c2333; border-radius: 6px; padding: 10px; margin-bottom: 8px;">
+            <table width="100%" cellpadding="3" cellspacing="0">
+              <tr>
+                <td style="color: #8b949e;">Supervised Threat Classifier:</td>
+                <td><b style="color: {threat_col}; font-size: 9.5pt;">{threat_cat}</b> ({report.ml_confidence if report.ml_confidence is not None else 0.5:.1%} Confidence)</td>
+                <td style="color: #8b949e;">Isolation Forest Anomaly:</td>
+                <td><b style="color: {anom_col}; font-size: 9.5pt;">{anom_stat}</b> (Score: {report.anomaly_score:.3f})</td>
+              </tr>
+              <tr>
+                <td style="color: #8b949e;">Composite Risk Score:</td>
+                <td><b style="color: {r_border}; font-size: 9.5pt;">{report.risk_score if report.risk_score is not None else 0}/100</b></td>
+                <td style="color: #8b949e;">Threat Severity:</td>
+                <td><b style="color: {r_border}; font-size: 9.5pt;">{report.severity or 'INFORMATIONAL'}</b></td>
+              </tr>
+            </table>
+          </div>
 
-        self.txt_utie_behavior.setText(behavior_text)
+          <div style="font-weight: bold; color: #00e5ff; font-size: 9pt; margin: 8px 0px 4px 0px;">
+            📋 SUGGESTED SOC INVESTIGATION PLAYBOOK:
+          </div>
+        """
+        for i, step in enumerate(report.suggested_investigation_steps, start=1):
+            playbook_html += f"""
+            <div style="background-color: #0d1117; border-left: 3px solid #00e5ff; border: 1px solid #1f293d; border-radius: 4px; padding: 6px 10px; margin-bottom: 4px;">
+              <span style="color: #00e5ff; font-weight: bold;">STEP {i}:</span>
+              <span style="color: #f0f6fc; margin-left: 6px;">{step}</span>
+            </div>
+            """
+        playbook_html += "</div>"
+        self.txt_utie_playbook.setHtml(playbook_html)
 
     def save_and_apply_settings(self) -> None:
         bpf = self.txt_bpf.text().strip()
@@ -3334,6 +3867,9 @@ Composite Risk Score: {report.risk_score if report.risk_score is not None else 0
             self.refresh_model_status_display()
         elif hasattr(self, "tab_reports") and current_widget == self.tab_reports:
             self.refresh_reports_tab()
+        elif hasattr(self, "tab_utie") and current_widget == self.tab_utie:
+            if len(self.all_utie_reports) == 0:
+                self.load_historical_utie_reports()
 
     def load_historical_events(self) -> None:
         """Loads events from SQLite database into Event History table."""

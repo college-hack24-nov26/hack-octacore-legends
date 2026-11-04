@@ -251,6 +251,8 @@ class UnsupervisedDirectionalityEngine:
             state = DirectionalityState.UNIDIRECTIONAL_OBSERVED
             explanation.append("Zero reverse packets observed across the entire flow duration.")
             explanation.append(f"Forward direction transmitted {fwd_pkts:,} packets ({features.get('forward_byte_count', 0):,.0f} bytes).")
+            if total_pkts <= 2:
+                explanation.append("Sparse observation (<= 2 packets): Reverse path unobserved or asymmetric capture tap. Insufficient evidence to establish ongoing conversation directionality.")
             is_excluded = False # Route to security pipeline
         elif directionality_score >= 0.75:
             state = DirectionalityState.STRONGLY_ASYMMETRIC

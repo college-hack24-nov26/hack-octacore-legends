@@ -30,9 +30,14 @@ class FeatureExtractor:
         byte_count = flow.byte_count
 
         # Rates (packets/sec, bytes/sec)
-        effective_duration = duration if duration > cls.EPSILON else cls.EPSILON
-        pkt_rate = float(pkt_count) / effective_duration
-        byte_rate = float(byte_count) / effective_duration
+        # For zero-duration or single-packet flows, rate is mathematically undefined
+        # and conventionally assigned 0.0 to prevent artificial rate spikes (e.g. 10,000,000 pkts/s).
+        if duration <= 1e-6 or pkt_count <= 1:
+            pkt_rate = 0.0
+            byte_rate = 0.0
+        else:
+            pkt_rate = float(pkt_count) / duration
+            byte_rate = float(byte_count) / duration
 
         # Packet Length Statistics (O(1) from Welford moments or fallback)
         if hasattr(flow, "pkt_len_mean") and flow.packet_count > 0:
